@@ -40,14 +40,13 @@ export function configureAmplify() {
                 "profile",
               ],
 
-              redirectSignIn: [
-                "http://localhost:3000/login",
-              ],
+                redirectSignIn: [
+            `${window.location.origin}/login`,
+          ],
 
-              redirectSignOut: [
-                "http://localhost:3000/login",
-              ],
-
+            redirectSignOut: [
+              `${window.location.origin}/login`,
+            ],
               responseType: "code",
             },
           },
