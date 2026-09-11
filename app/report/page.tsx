@@ -355,7 +355,7 @@ export default function ReportPage() {
 
             <Link
               href="/"
-              className="hidden rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 sm:block"
+              className="hidden rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 sm:block"
             >
               ← Home
             </Link>
