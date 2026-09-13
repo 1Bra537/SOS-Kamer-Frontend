@@ -310,7 +310,7 @@ export default function ReportDetailsPage() {
               href="/reports"
               className="rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
-              ← My reports
+              ← Home
             </Link>
             <SignOutButton />
           </div>
@@ -366,9 +366,9 @@ export default function ReportDetailsPage() {
                     {formatIncidentType(report.incidentType)}
                   </h1>
 
-                  <p className="mt-2 font-mono text-xs text-slate-400">
+                  {/* <p className="mt-2 font-mono text-xs text-slate-400">
                     {report.reportId}
-                  </p>
+                  </p> */}
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">

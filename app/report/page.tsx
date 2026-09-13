@@ -293,21 +293,21 @@ export default function ReportPage() {
               system.
             </p>
 
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
+            {/* <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
 
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
                 Report reference
-              </p>
+              </p> */}
 
-              <p className="mt-2 break-all font-mono text-sm font-semibold text-slate-200">
+              {/* <p className="mt-2 break-all font-mono text-sm font-semibold text-slate-200">
                 {reportId}
-              </p>
-
+              </p> */}
+{/* 
               <p className="mt-3 text-xs leading-5 text-slate-500">
                 Keep this reference for your records.
               </p>
 
-            </div>
+            </div> */}
 
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
@@ -362,12 +362,12 @@ export default function ReportPage() {
 
           <div className="flex items-center gap-2 sm:gap-3">
 
-            <Link
+            {/* <Link
               href="/"
               className="hidden rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 sm:block"
             >
               ← Home
-            </Link>
+            </Link> */}
 
             <Link
               href="/reports"

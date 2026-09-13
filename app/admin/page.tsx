@@ -1046,7 +1046,7 @@ export default function AdminPage() {
                   <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
 
                   <p className="text-sm font-medium text-slate-500">
-                    Loading secure evidence...
+                    Loading evidence...
                   </p>
 
                 </div>

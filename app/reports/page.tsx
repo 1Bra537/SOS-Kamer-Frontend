@@ -101,9 +101,9 @@ function ReportCard({ report }: { report: CitizenReport }) {
             )}
           </div>
 
-          <h2 className="mt-3 font-mono text-sm font-bold text-slate-900">
+          {/* <h2 className="mt-3 font-mono text-sm font-bold text-slate-900">
             {report.reportId}
-          </h2>
+          </h2> */}
 
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
             {report.description}
