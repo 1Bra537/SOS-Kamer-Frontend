@@ -160,3 +160,53 @@ export async function getEvidenceUrl(reportId: string) {
 
   return parseResponse(response);
 }
+
+export type CitizenReport = {
+  reportId: string;
+  incidentType: string;
+  description: string;
+  town: string;
+  quarter: string;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  resolvedAt?: string;
+  evidenceCount: number;
+  statusHistory: {
+    status: string;
+    timestamp: string;
+    actor: string;
+  }[];
+};
+
+export async function getMyReports(): Promise<{
+  reports: CitizenReport[];
+  count: number;
+}> {
+  if (!API_URL) throw new Error("API URL is not configured.");
+
+  const response = await fetch(`${API_URL}/reports/my`, {
+    method: "GET",
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+
+  return parseResponse(response);
+}
+
+export async function getMyReport(
+  reportId: string
+): Promise<{ report: CitizenReport }> {
+  if (!API_URL) throw new Error("API URL is not configured.");
+
+  const response = await fetch(
+    `${API_URL}/reports/my/${encodeURIComponent(reportId)}`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}

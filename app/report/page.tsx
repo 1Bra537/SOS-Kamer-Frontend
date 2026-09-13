@@ -309,12 +309,21 @@ export default function ReportPage() {
 
             </div>
 
-            <Link
-              href="/"
-              className="mt-8 inline-flex h-12 items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-bold shadow-lg shadow-red-950/30 transition hover:bg-red-500"
-            >
-              Return home
-            </Link>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link
+                href="/reports"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-bold shadow-lg shadow-red-950/30 transition hover:bg-red-500"
+              >
+                View my reports
+              </Link>
+
+              <Link
+                href="/"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-6 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]"
+              >
+                Return home
+              </Link>
+            </div>
 
           </div>
 
@@ -358,6 +367,13 @@ export default function ReportPage() {
               className="hidden rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 sm:block"
             >
               ← Home
+            </Link>
+
+            <Link
+              href="/reports"
+              className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+            >
+              My reports
             </Link>
 
             <SignOutButton />

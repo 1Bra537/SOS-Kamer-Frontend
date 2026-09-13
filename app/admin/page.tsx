@@ -536,6 +536,10 @@ export default function AdminPage() {
         notificationId
       );
 
+      const notification = notifications.find(
+        (item) => item.notificationId === notificationId
+      );
+
       setNotifications((current) =>
         current.map((notification) =>
           notification.notificationId ===
@@ -545,10 +549,26 @@ export default function AdminPage() {
                 status: "ACKNOWLEDGED",
                 acknowledgedAt:
                   new Date().toISOString(),
-              }
+            }
             : notification
         )
       );
+
+      // Keep the report list synchronized with the notification
+      // acknowledgement. The backend also persists this transition.
+      if (notification?.reportId) {
+        setReports((current) =>
+          current.map((report) =>
+            report.reportId === notification.reportId &&
+            report.status !== "RESOLVED"
+              ? {
+                  ...report,
+                  status: "ACKNOWLEDGED",
+              }
+              : report
+          )
+        );
+      }
     } catch (err: any) {
       alert(
         err?.message ||
