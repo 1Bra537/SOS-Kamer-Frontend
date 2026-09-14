@@ -104,6 +104,18 @@ export async function getAdminReports() {
   return parseResponse(response);
 }
 
+export async function getAdminNotificationCount(): Promise<{ count: number }> {
+  if (!API_URL) throw new Error("API URL is not configured.");
+
+  const response = await fetch(`${API_URL}/admin/notifications/count`, {
+    method: "GET",
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+
+  return parseResponse(response);
+}
+
 export async function getAdminNotifications() {
   if (!API_URL) throw new Error("API URL is not configured.");
 
@@ -157,6 +169,81 @@ export async function getEvidenceUrl(reportId: string) {
       headers: await authHeaders(),
     }
   );
+
+  return parseResponse(response);
+}
+
+export async function getEvidenceDownloadUrl(reportId: string, index: number) {
+  if (!API_URL) throw new Error("API URL is not configured.");
+
+  const response = await fetch(
+    `${API_URL}/admin/reports/${encodeURIComponent(reportId)}/evidence/${index}`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+export async function getReportPdfUrl(reportId: string) {
+  if (!API_URL) throw new Error("API URL is not configured.");
+
+  const response = await fetch(
+    `${API_URL}/admin/reports/${encodeURIComponent(reportId)}/pdf`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+export type AdminAnalytics = {
+  summary: {
+    totalReports: number;
+    newReports: number;
+    acknowledgedReports: number;
+    resolvedReports: number;
+  };
+  reportsByType: { type: string; count: number }[];
+  reportsByStatus: { status: string; count: number }[];
+  reportsByTown: { town: string; count: number }[];
+  availableTowns: string[];
+  reportsOverTime: { date: string; count: number }[];
+  filter?: { type: string; town: string; status: string; period: string };
+  averageAcknowledgementTimeMinutes: number;
+  averageResolutionTimeMinutes: number;
+};
+
+export type AdminAnalyticsFilters = {
+  type?: string;
+  town?: string;
+  status?: string;
+  period?: string;
+};
+
+export async function getAdminAnalytics(
+  filters: AdminAnalyticsFilters = {},
+): Promise<AdminAnalytics> {
+  if (!API_URL) throw new Error("API URL is not configured.");
+
+  const params = new URLSearchParams();
+  if (filters.type && filters.type !== "ALL") params.set("type", filters.type);
+  if (filters.town && filters.town !== "ALL") params.set("town", filters.town);
+  if (filters.status && filters.status !== "ALL") params.set("status", filters.status);
+  if (filters.period && filters.period !== "all") params.set("period", filters.period);
+
+  const query = params.toString();
+  const response = await fetch(`${API_URL}/admin/analytics${query ? `?${query}` : ""}`, {
+    method: "GET",
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
 
   return parseResponse(response);
 }
