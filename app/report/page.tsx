@@ -594,7 +594,8 @@ export default function ReportPage() {
 
         await uploadEvidence(
           voiceUpload.uploadUrl,
-          voiceFile
+          voiceFile,
+          voiceUpload.contentType
         );
 
         uploadedVoiceKey =

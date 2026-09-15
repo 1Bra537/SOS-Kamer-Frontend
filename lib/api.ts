@@ -82,12 +82,18 @@ export async function getUploadUrl(
 
 export async function uploadEvidence(
   uploadUrl: string,
-  file: File
+  file: File,
+  contentType?: string
 ) {
+  const uploadContentType =
+    contentType ||
+    file.type ||
+    "application/octet-stream";
+
   const response = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
-      "Content-Type": file.type,
+      "Content-Type": uploadContentType,
     },
     body: file,
   });
