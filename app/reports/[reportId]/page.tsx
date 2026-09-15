@@ -12,7 +12,6 @@ import {
 } from "../../../lib/api";
 import SignOutButton from "../../../components/SignOutButton";
 
-
 const STATUS_STEPS = [
   {
     status: "NEW",
@@ -31,14 +30,12 @@ const STATUS_STEPS = [
   },
 ];
 
-
 function formatIncidentType(type: string) {
   return type
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
-
 
 function formatDate(dateString?: string) {
   if (!dateString) return "Unknown";
@@ -58,7 +55,6 @@ function formatDate(dateString?: string) {
   }).format(date);
 }
 
-
 function statusIndex(status: string) {
   const index = STATUS_STEPS.findIndex(
     (step) => step.status === status
@@ -66,7 +62,6 @@ function statusIndex(status: string) {
 
   return index >= 0 ? index : 0;
 }
-
 
 function Timeline({
   report,
@@ -116,7 +111,6 @@ function Timeline({
     </div>
   );
 }
-
 
 function StatusTracker({
   status,
@@ -205,6 +199,7 @@ function StatusTracker({
                 >
                   {step.title}
                 </p>
+
                 <p className="mt-1 text-xs leading-5 text-slate-500">
                   {step.description}
                 </p>
@@ -216,7 +211,6 @@ function StatusTracker({
     </div>
   );
 }
-
 
 export default function ReportDetailsPage() {
   const router = useRouter();
@@ -286,6 +280,9 @@ export default function ReportDetailsPage() {
     }
   }, [report]);
 
+  const isVoiceReport =
+    report?.descriptionType === "VOICE";
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -299,6 +296,7 @@ export default function ReportDetailsPage() {
               <p className="text-sm font-bold tracking-tight text-slate-950">
                 SOS<span className="text-red-600">-Kamer</span>
               </p>
+
               <p className="hidden text-[10px] font-medium text-slate-400 sm:block">
                 Citizen Reporting
               </p>
@@ -312,6 +310,7 @@ export default function ReportDetailsPage() {
             >
               ← Home
             </Link>
+
             <SignOutButton />
           </div>
         </div>
@@ -331,6 +330,7 @@ export default function ReportDetailsPage() {
             <p className="text-sm font-bold text-red-800">
               Report unavailable
             </p>
+
             <p className="mt-2 text-sm leading-6 text-red-700">
               {error}
             </p>
@@ -365,16 +365,13 @@ export default function ReportDetailsPage() {
                   <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
                     {formatIncidentType(report.incidentType)}
                   </h1>
-
-                  {/* <p className="mt-2 font-mono text-xs text-slate-400">
-                    {report.reportId}
-                  </p> */}
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Current status
                   </p>
+
                   <p className="mt-1 text-sm font-bold text-slate-900">
                     {currentStatusLabel}
                   </p>
@@ -386,6 +383,7 @@ export default function ReportDetailsPage() {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Submitted
                   </p>
+
                   <p className="mt-1 text-sm font-semibold text-slate-700">
                     {formatDate(report.createdAt)}
                   </p>
@@ -395,6 +393,7 @@ export default function ReportDetailsPage() {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Location
                   </p>
+
                   <p className="mt-1 text-sm font-semibold text-slate-700">
                     {report.quarter}, {report.town}
                   </p>
@@ -404,6 +403,7 @@ export default function ReportDetailsPage() {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Evidence
                   </p>
+
                   <p className="mt-1 text-sm font-semibold text-slate-700">
                     {report.evidenceCount} file
                     {report.evidenceCount === 1 ? "" : "s"}
@@ -414,8 +414,12 @@ export default function ReportDetailsPage() {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Last update
                   </p>
+
                   <p className="mt-1 text-sm font-semibold text-slate-700">
-                    {formatDate(report.updatedAt || report.createdAt)}
+                    {formatDate(
+                      report.updatedAt ||
+                        report.createdAt
+                    )}
                   </p>
                 </div>
               </div>
@@ -426,6 +430,7 @@ export default function ReportDetailsPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                   Progress
                 </p>
+
                 <h2 className="mt-1 text-lg font-bold">
                   Follow your report
                 </h2>
@@ -460,15 +465,72 @@ export default function ReportDetailsPage() {
                   Incident details
                 </h2>
 
-                <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-600">
-                  {report.description}
-                </p>
+                {isVoiceReport ? (
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="h-5 w-5"
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 18.5a4.5 4.5 0 0 0 4.5-4.5V8a4.5 4.5 0 0 0-9 0v6a4.5 4.5 0 0 0 4.5 4.5Z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 13.5a7 7 0 0 1-14 0M12 20v3M8 23h8"
+                          />
+                        </svg>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          Voice description
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          Your recorded incident description
+                        </p>
+                      </div>
+                    </div>
+
+                    {report.audioUrl ? (
+                      <audio
+                        className="mt-5 w-full"
+                        controls
+                        preload="metadata"
+                        src={report.audioUrl}
+                      >
+                        Your browser does not support audio playback.
+                      </audio>
+                    ) : (
+                      <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-xs leading-5 text-amber-700">
+                          The voice recording is currently unavailable.
+                          Please try refreshing the report later.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-600">
+                    {report.description}
+                  </p>
+                )}
 
                 {report.resolvedAt && (
                   <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <p className="text-xs font-bold text-emerald-800">
                       Incident resolved
                     </p>
+
                     <p className="mt-1 text-xs leading-5 text-emerald-700">
                       This report was marked resolved on{" "}
                       {formatDate(report.resolvedAt)}.
@@ -482,9 +544,11 @@ export default function ReportDetailsPage() {
               <p className="text-sm font-bold text-slate-900">
                 Need to report another incident?
               </p>
+
               <p className="mt-1 text-xs text-slate-500">
                 Submit a new report and it will appear in My Reports.
               </p>
+
               <Link
                 href="/report"
                 className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-red-600 px-5 text-xs font-bold text-white transition hover:bg-red-500"

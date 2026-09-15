@@ -14,6 +14,7 @@ import {
   getEvidenceDownloadUrl,
   getReportPdfUrl,
   getAdminAnalytics,
+  getReportDescriptionAudioUrl,
   AdminAnalytics,
 } from "@/lib/api";
 
@@ -30,7 +31,14 @@ type Report = {
   reportId: string;
   citizenId: string;
   incidentType: string;
+
   description: string;
+
+  descriptionType?: "TEXT" | "VOICE";
+  audioKey?: string;
+  audioContentType?: string;
+  audioUrl?: string;
+
   photoKey: string;
 
   evidence?: {
@@ -236,20 +244,47 @@ function AdminDashboard() {
     []
   );
 
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsType, setAnalyticsType] = useState("ALL");
-  const [analyticsTown, setAnalyticsTown] = useState("ALL");
-  const [analyticsStatus, setAnalyticsStatus] = useState("ALL");
-  const [analyticsPeriod, setAnalyticsPeriod] = useState("all");
+  const [notificationCount, setNotificationCount] =
+    useState(0);
+
+  const [analytics, setAnalytics] =
+    useState<AdminAnalytics | null>(null);
+
+  const [analyticsLoading, setAnalyticsLoading] =
+    useState(false);
+
+  const [analyticsType, setAnalyticsType] =
+    useState("ALL");
+
+  const [analyticsTown, setAnalyticsTown] =
+    useState("ALL");
+
+  const [analyticsStatus, setAnalyticsStatus] =
+    useState("ALL");
+
+  const [analyticsPeriod, setAnalyticsPeriod] =
+    useState("all");
 
   const [loading, setLoading] =
     useState(true);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   const [processingId, setProcessingId] =
+    useState("");
+
+  // -------------------------------------------------
+  // Voice descriptions
+  // -------------------------------------------------
+
+  const [voiceUrls, setVoiceUrls] =
+    useState<Record<string, string>>({});
+
+  const [voiceLoadingReportId, setVoiceLoadingReportId] =
+    useState("");
+
+  const [voiceErrorReportId, setVoiceErrorReportId] =
     useState("");
 
   // -------------------------------------------------
@@ -298,11 +333,22 @@ function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const reportId = searchParams.get("reportId");
-    if (!reportId || !reports.length) return;
+    const reportId =
+      searchParams.get("reportId");
+
+    if (!reportId || !reports.length) {
+      return;
+    }
+
     setSearchQuery(reportId);
+
     window.setTimeout(() => {
-      document.getElementById(`report-${reportId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document
+        .getElementById(`report-${reportId}`)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
     }, 150);
   }, [searchParams, reports.length]);
 
@@ -356,31 +402,75 @@ function AdminDashboard() {
   }
 
   async function loadAnalytics(
-    overrides: Partial<{ type: string; town: string; status: string; period: string }> = {},
+    overrides: Partial<{
+      type: string;
+      town: string;
+      status: string;
+      period: string;
+    }> = {}
   ) {
     try {
       setAnalyticsLoading(true);
+
       const filters = {
-        type: overrides.type ?? analyticsType,
-        town: overrides.town ?? analyticsTown,
-        status: overrides.status ?? analyticsStatus,
-        period: overrides.period ?? analyticsPeriod,
+        type:
+          overrides.type ??
+          analyticsType,
+
+        town:
+          overrides.town ??
+          analyticsTown,
+
+        status:
+          overrides.status ??
+          analyticsStatus,
+
+        period:
+          overrides.period ??
+          analyticsPeriod,
       };
-      const result = await getAdminAnalytics(filters);
+
+      const result =
+        await getAdminAnalytics(filters);
+
       setAnalytics(result);
     } catch (err) {
-      console.error("Unable to load admin analytics", err);
+      console.error(
+        "Unable to load admin analytics",
+        err
+      );
     } finally {
       setAnalyticsLoading(false);
     }
   }
 
-  function updateAnalyticsFilter(name: "type" | "town" | "status" | "period", value: string) {
-    if (name === "type") setAnalyticsType(value);
-    if (name === "town") setAnalyticsTown(value);
-    if (name === "status") setAnalyticsStatus(value);
-    if (name === "period") setAnalyticsPeriod(value);
-    void loadAnalytics({ [name]: value });
+  function updateAnalyticsFilter(
+    name:
+      | "type"
+      | "town"
+      | "status"
+      | "period",
+    value: string
+  ) {
+    if (name === "type") {
+      setAnalyticsType(value);
+    }
+
+    if (name === "town") {
+      setAnalyticsTown(value);
+    }
+
+    if (name === "status") {
+      setAnalyticsStatus(value);
+    }
+
+    if (name === "period") {
+      setAnalyticsPeriod(value);
+    }
+
+    void loadAnalytics({
+      [name]: value,
+    });
   }
 
   function resetAnalyticsFilters() {
@@ -388,26 +478,192 @@ function AdminDashboard() {
     setAnalyticsTown("ALL");
     setAnalyticsStatus("ALL");
     setAnalyticsPeriod("all");
-    void loadAnalytics({ type: "ALL", town: "ALL", status: "ALL", period: "all" });
+
+    void loadAnalytics({
+      type: "ALL",
+      town: "ALL",
+      status: "ALL",
+      period: "all",
+    });
   }
 
-  async function handleDownloadEvidence(index: number) {
-    if (!selectedEvidenceReportId) return;
+  // -------------------------------------------------
+  // Voice description
+  // -------------------------------------------------
+
+  async function handleLoadVoiceDescription(
+    reportId: string
+  ) {
+    if (voiceUrls[reportId]) {
+      return;
+    }
+
     try {
-      const result = await getEvidenceDownloadUrl(selectedEvidenceReportId, index);
-      window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
+      setVoiceLoadingReportId(reportId);
+      setVoiceErrorReportId("");
+
+      const result =
+        await getReportDescriptionAudioUrl(
+          reportId
+        );
+
+      if (!result?.audioUrl) {
+        throw new Error(
+          "No voice description URL was returned."
+        );
+      }
+
+      setVoiceUrls((current) => ({
+        ...current,
+        [reportId]: result.audioUrl,
+      }));
     } catch (err: any) {
-      alert(err?.message || "Unable to download evidence.");
+      console.error(err);
+
+      setVoiceErrorReportId(reportId);
+
+      alert(
+        err?.message ||
+          "Unable to load the voice description."
+      );
+    } finally {
+      setVoiceLoadingReportId("");
     }
   }
 
-  async function handleDownloadPdf(reportId: string) {
+  function renderDescription(
+    report: Report
+  ) {
+    const isVoice =
+      report.descriptionType === "VOICE";
+
+    if (!isVoice) {
+      return (
+        <div>
+          <p className="line-clamp-2 text-sm leading-5 text-slate-600">
+            {report.description ||
+              "No description provided."}
+          </p>
+        </div>
+      );
+    }
+
+    const audioUrl =
+      voiceUrls[report.reportId];
+
+    const loadingVoice =
+      voiceLoadingReportId ===
+      report.reportId;
+
+    const voiceError =
+      voiceErrorReportId ===
+      report.reportId;
+
+    return (
+      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">
+            🎙️
+          </span>
+
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-violet-800">
+              Voice description
+            </p>
+
+            <p className="text-[10px] text-violet-600">
+              Audio message from citizen
+            </p>
+          </div>
+        </div>
+
+        {audioUrl ? (
+          <audio
+            key={audioUrl}
+            src={audioUrl}
+            controls
+            preload="metadata"
+            className="mt-3 w-full"
+          >
+            Your browser does not support
+            audio playback.
+          </audio>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              void handleLoadVoiceDescription(
+                report.reportId
+              )
+            }
+            disabled={loadingVoice}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loadingVoice
+              ? "Loading voice..."
+              : "▶ Play voice description"}
+          </button>
+        )}
+
+        {voiceError && (
+          <p className="mt-2 text-[10px] font-medium text-red-600">
+            Unable to load the voice message.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  async function handleDownloadEvidence(
+    index: number
+  ) {
+    if (!selectedEvidenceReportId) {
+      return;
+    }
+
     try {
-      setProcessingId(`pdf:${reportId}`);
-      const result = await getReportPdfUrl(reportId);
-      window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
+      const result =
+        await getEvidenceDownloadUrl(
+          selectedEvidenceReportId,
+          index
+        );
+
+      window.open(
+        result.downloadUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
     } catch (err: any) {
-      alert(err?.message || "Unable to generate the PDF report.");
+      alert(
+        err?.message ||
+          "Unable to download evidence."
+      );
+    }
+  }
+
+  async function handleDownloadPdf(
+    reportId: string
+  ) {
+    try {
+      setProcessingId(
+        `pdf:${reportId}`
+      );
+
+      const result =
+        await getReportPdfUrl(
+          reportId
+        );
+
+      window.open(
+        result.downloadUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (err: any) {
+      alert(
+        err?.message ||
+          "Unable to generate the PDF report."
+      );
     } finally {
       setProcessingId("");
     }
@@ -477,7 +733,8 @@ function AdminDashboard() {
               evidenceUrl:
                 item.evidenceUrl,
               mediaType:
-                item.mediaType === "video"
+                item.mediaType ===
+                "video"
                   ? "video"
                   : "image",
               contentType:
@@ -496,7 +753,8 @@ function AdminDashboard() {
           "image";
 
         if (
-          result.mediaType === "video"
+          result.mediaType ===
+          "video"
         ) {
           mediaType = "video";
         } else if (
@@ -574,7 +832,8 @@ function AdminDashboard() {
     }
 
     setEvidenceIndex((current) =>
-      current === evidenceItems.length - 1
+      current ===
+      evidenceItems.length - 1
         ? 0
         : current + 1
     );
@@ -622,7 +881,8 @@ function AdminDashboard() {
 
         const matchesStatus =
           statusFilter === "ALL" ||
-          report.status === statusFilter;
+          report.status ===
+            statusFilter;
 
         return (
           matchesSearch &&
@@ -637,8 +897,12 @@ function AdminDashboard() {
         sortOption === "newest"
       ) {
         return (
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
+          new Date(
+            b.createdAt
+          ).getTime() -
+          new Date(
+            a.createdAt
+          ).getTime()
         );
       }
 
@@ -646,8 +910,12 @@ function AdminDashboard() {
         sortOption === "oldest"
       ) {
         return (
-          new Date(a.createdAt).getTime() -
-          new Date(b.createdAt).getTime()
+          new Date(
+            a.createdAt
+          ).getTime() -
+          new Date(
+            b.createdAt
+          ).getTime()
         );
       }
 
@@ -701,14 +969,16 @@ function AdminDashboard() {
         report.status === "RESOLVED"
     ).length;
 
-  const unacknowledgedNotifications = notificationCount;
+  const unacknowledgedNotifications =
+    notificationCount;
 
   const criticalReports =
     reports.filter(
       (report) =>
         report.incidentType ===
           "CHILD_ABUSE" &&
-        report.status !== "RESOLVED"
+        report.status !==
+          "RESOLVED"
     ).length;
 
   const currentEvidence =
@@ -725,7 +995,8 @@ function AdminDashboard() {
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-red-500" />
 
           <p className="text-sm font-medium text-slate-300">
-            Verifying administrator access...
+            Verifying administrator
+            access...
           </p>
 
           <p className="mt-1 text-xs text-slate-500">
@@ -820,17 +1091,22 @@ function AdminDashboard() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Monitor incoming reports, review
-                evidence, and manage incident
-                response from one place.
+                Monitor incoming reports,
+                review evidence, and manage
+                incident response from one
+                place.
               </p>
 
             </div>
 
-                    <div className="flex flex-wrap gap-2">
-              {/* Notifications */}
+            <div className="flex flex-wrap gap-2">
+
               <button
-                onClick={() => router.push("/admin/notifications")}
+                onClick={() =>
+                  router.push(
+                    "/admin/notifications"
+                  )
+                }
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100"
               >
                 🔔 Notifications
@@ -840,26 +1116,29 @@ function AdminDashboard() {
                 </span>
               </button>
 
-              {/* Analytics shortcut */}
               <button
                 onClick={() =>
-                  document.getElementById("analytics")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  })
+                  document
+                    .getElementById(
+                      "analytics"
+                    )
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    })
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
               >
                 📊 Analytics
               </button>
 
-              {/* Refresh */}
               <button
                 onClick={loadAdminData}
                 className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
                 ↻ Refresh data
               </button>
+
             </div>
 
           </div>
@@ -898,8 +1177,6 @@ function AdminDashboard() {
 
         <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-          {/* Active */}
-
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
             <div className="flex items-start justify-between">
@@ -927,8 +1204,6 @@ function AdminDashboard() {
             </p>
 
           </div>
-
-          {/* Critical */}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
@@ -958,8 +1233,6 @@ function AdminDashboard() {
 
           </div>
 
-          {/* Notifications */}
-
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
             <div className="flex items-start justify-between">
@@ -987,8 +1260,6 @@ function AdminDashboard() {
             </p>
 
           </div>
-
-          {/* Resolved */}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
@@ -1048,14 +1319,17 @@ function AdminDashboard() {
                   <p className="mt-1 text-xs text-slate-500">
                     Report{" "}
                     <span className="font-mono font-semibold text-slate-700">
-                      {selectedEvidenceReportId}
+                      {
+                        selectedEvidenceReportId
+                      }
                     </span>
                   </p>
                 )}
 
               </div>
 
-              {(evidenceItems.length > 0 ||
+              {(evidenceItems.length >
+                0 ||
                 evidenceError) && (
 
                 <button
@@ -1111,8 +1385,12 @@ function AdminDashboard() {
                     </span>
 
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                      {evidenceIndex + 1} of{" "}
-                      {evidenceItems.length}
+                      {evidenceIndex +
+                        1}{" "}
+                      of{" "}
+                      {
+                        evidenceItems.length
+                      }
                     </span>
 
                   </div>
@@ -1146,7 +1424,8 @@ function AdminDashboard() {
                             currentEvidence.evidenceUrl
                           }
                           alt={`Incident evidence ${
-                            evidenceIndex + 1
+                            evidenceIndex +
+                            1
                           }`}
                           className="max-h-[560px] w-auto max-w-full rounded-lg object-contain"
                         />
@@ -1165,8 +1444,8 @@ function AdminDashboard() {
                           preload="metadata"
                           className="max-h-[560px] w-full rounded-lg"
                         >
-                          Your browser does not support
-                          video playback.
+                          Your browser does not
+                          support video playback.
                         </video>
 
                       )}
@@ -1201,7 +1480,17 @@ function AdminDashboard() {
                         .split("/")
                         .pop()}
                     </p>
-                    <button onClick={() => handleDownloadEvidence(evidenceIndex)} className="mt-4 rounded-lg bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">↓ Download this evidence</button>
+
+                    <button
+                      onClick={() =>
+                        handleDownloadEvidence(
+                          evidenceIndex
+                        )
+                      }
+                      className="mt-4 rounded-lg bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      ↓ Download this evidence
+                    </button>
 
                   </div>
 
@@ -1220,8 +1509,6 @@ function AdminDashboard() {
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-          {/* Header */}
-
           <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
 
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1235,18 +1522,16 @@ function AdminDashboard() {
                   </h2>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {filteredReports.length}
+                    {
+                      filteredReports.length
+                    }
                   </span>
 
                 </div>
 
               </div>
 
-              {/* Filters */}
-
               <div className="flex flex-col gap-2 sm:flex-row">
-
-                {/* Search */}
 
                 <div className="relative">
 
@@ -1267,8 +1552,6 @@ function AdminDashboard() {
                   />
 
                 </div>
-
-                {/* Type */}
 
                 <select
                   value={typeFilter}
@@ -1297,8 +1580,6 @@ function AdminDashboard() {
 
                 </select>
 
-                {/* Status */}
-
                 <select
                   value={statusFilter}
                   onChange={(event) =>
@@ -1323,8 +1604,6 @@ function AdminDashboard() {
 
                 </select>
 
-                {/* Sort */}
-
                 <select
                   value={sortOption}
                   onChange={(event) =>
@@ -1333,7 +1612,7 @@ function AdminDashboard() {
                         .value as SortOption
                     )
                   }
-                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                 >
 
                   <option value="newest">
@@ -1360,8 +1639,6 @@ function AdminDashboard() {
 
           </div>
 
-          {/* Empty state */}
-
           {filteredReports.length === 0 ? (
 
             <div className="px-6 py-16 text-center">
@@ -1387,7 +1664,9 @@ function AdminDashboard() {
                   onClick={() => {
                     setSearchQuery("");
                     setTypeFilter("ALL");
-                    setStatusFilter("ALL");
+                    setStatusFilter(
+                      "ALL"
+                    );
                   }}
                   className="mt-4 text-sm font-semibold text-slate-900 underline underline-offset-4"
                 >
@@ -1446,8 +1725,11 @@ function AdminDashboard() {
                       (report) => {
 
                         const evidenceCount =
-                          report.evidence?.length ||
-                          (report.photoKey ? 1 : 0);
+                          report.evidence
+                            ?.length ||
+                          (report.photoKey
+                            ? 1
+                            : 0);
 
                         return (
 
@@ -1457,8 +1739,6 @@ function AdminDashboard() {
                             }
                             className="group transition hover:bg-slate-50/70"
                           >
-
-                            {/* Incident */}
 
                             <td className="px-6 py-4">
 
@@ -1470,11 +1750,16 @@ function AdminDashboard() {
                                   }
                                 />
 
+                                {report.descriptionType ===
+                                  "VOICE" && (
+                                  <span className="inline-flex w-fit items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">
+                                    🎙️ Voice
+                                  </span>
+                                )}
+
                               </div>
 
                             </td>
-
-                            {/* Location */}
 
                             <td className="px-6 py-4">
 
@@ -1488,15 +1773,11 @@ function AdminDashboard() {
 
                             </td>
 
-                            {/* Description */}
-
                             <td className="max-w-md px-6 py-4">
 
-                              <p className="line-clamp-2 text-sm leading-5 text-slate-600">
-                                {
-                                  report.description
-                                }
-                              </p>
+                              {renderDescription(
+                                report
+                              )}
 
                               {evidenceCount >
                                 0 && (
@@ -1530,8 +1811,6 @@ function AdminDashboard() {
 
                             </td>
 
-                            {/* Reported */}
-
                             <td className="px-6 py-4">
 
                               <p className="text-sm font-semibold text-slate-700">
@@ -1548,8 +1827,6 @@ function AdminDashboard() {
 
                             </td>
 
-                            {/* Status */}
-
                             <td className="px-6 py-4">
 
                               <StatusBadge
@@ -1559,8 +1836,6 @@ function AdminDashboard() {
                               />
 
                             </td>
-
-                            {/* Actions */}
 
                             <td className="px-6 py-4">
 
@@ -1587,8 +1862,22 @@ function AdminDashboard() {
 
                                 )}
 
-                                <button onClick={() => handleDownloadPdf(report.reportId)} disabled={processingId === `pdf:${report.reportId}`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50">
-                                  {processingId === `pdf:${report.reportId}` ? "PDF..." : "PDF"}
+                                <button
+                                  onClick={() =>
+                                    handleDownloadPdf(
+                                      report.reportId
+                                    )
+                                  }
+                                  disabled={
+                                    processingId ===
+                                    `pdf:${report.reportId}`
+                                  }
+                                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                  {processingId ===
+                                  `pdf:${report.reportId}`
+                                    ? "PDF..."
+                                    : "PDF"}
                                 </button>
 
                                 {report.status !==
@@ -1627,7 +1916,6 @@ function AdminDashboard() {
                           </tr>
 
                         );
-
                       }
                     )}
 
@@ -1645,8 +1933,11 @@ function AdminDashboard() {
                   (report) => {
 
                     const evidenceCount =
-                      report.evidence?.length ||
-                      (report.photoKey ? 1 : 0);
+                      report.evidence
+                        ?.length ||
+                      (report.photoKey
+                        ? 1
+                        : 0);
 
                     return (
 
@@ -1667,6 +1958,13 @@ function AdminDashboard() {
                                 report.incidentType
                               }
                             />
+
+                            {report.descriptionType ===
+                              "VOICE" && (
+                              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">
+                                🎙️ Voice description
+                              </span>
+                            )}
 
                           </div>
 
@@ -1690,11 +1988,11 @@ function AdminDashboard() {
 
                         </div>
 
-                        <p className="mt-3 text-sm leading-6 text-slate-600">
-                          {
-                            report.description
-                          }
-                        </p>
+                        <div className="mt-3">
+                          {renderDescription(
+                            report
+                          )}
+                        </div>
 
                         <div className="mt-3 flex items-center gap-3 text-xs text-slate-400">
 
@@ -1713,7 +2011,9 @@ function AdminDashboard() {
                               </span>
 
                               <span>
-                                {evidenceCount}{" "}
+                                {
+                                  evidenceCount
+                                }{" "}
                                 {evidenceCount ===
                                 1
                                   ? "evidence"
@@ -1743,8 +2043,22 @@ function AdminDashboard() {
 
                           )}
 
-                          <button onClick={() => handleDownloadPdf(report.reportId)} disabled={processingId === `pdf:${report.reportId}`} className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50">
-                            {processingId === `pdf:${report.reportId}` ? "PDF..." : "Download PDF"}
+                          <button
+                            onClick={() =>
+                              handleDownloadPdf(
+                                report.reportId
+                              )
+                            }
+                            disabled={
+                              processingId ===
+                              `pdf:${report.reportId}`
+                            }
+                            className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                          >
+                            {processingId ===
+                            `pdf:${report.reportId}`
+                              ? "PDF..."
+                              : "Download PDF"}
                           </button>
 
                           {report.status !==
@@ -1781,7 +2095,6 @@ function AdminDashboard() {
                       </div>
 
                     );
-
                   }
                 )}
 
@@ -1799,138 +2112,911 @@ function AdminDashboard() {
 
         <section
           id="analytics"
-          className="mb-8 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" >  
+          className="mb-8 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+        >
+
           <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-red-950 px-5 py-6 text-white sm:px-6">
+
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
               <div>
+
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-300">Command Center</span>
-                  {analyticsLoading && <span className="text-xs text-slate-400">Updating…</span>}
+
+                  <span className="rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-300">
+                    Command Center
+                  </span>
+
+                  {analyticsLoading && (
+                    <span className="text-xs text-slate-400">
+                      Updating…
+                    </span>
+                  )}
+
                 </div>
-                <h2 className="mt-2 text-xl font-bold tracking-tight">Incident Analytics</h2>
-                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300">Explore incident patterns by category, town, status, and reporting period.</p>
+
+                <h2 className="mt-2 text-xl font-bold tracking-tight">
+                  Incident Analytics
+                </h2>
+
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300">
+                  Explore incident patterns by
+                  category, town, status, and
+                  reporting period.
+                </p>
+
               </div>
-              <button onClick={() => void loadAnalytics()} disabled={analyticsLoading} className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/15 disabled:opacity-50">
-                {analyticsLoading ? "Refreshing…" : "↻ Refresh"}
+
+              <button
+                onClick={() =>
+                  void loadAnalytics()
+                }
+                disabled={
+                  analyticsLoading
+                }
+                className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/15 disabled:opacity-50"
+              >
+                {analyticsLoading
+                  ? "Refreshing…"
+                  : "↻ Refresh"}
               </button>
+
             </div>
+
           </div>
 
           <div className="p-5 sm:p-6">
+
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+
               <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+
                 <div className="min-w-0 flex-1">
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Incident type</label>
-                  <select value={analyticsType} onChange={(e) => updateAnalyticsFilter("type", e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                    <option value="ALL">All incidents</option>
-                    <option value="CHILD_ABUSE">Child abuse</option>
-                    <option value="FIGHT">Fight</option>
-                    <option value="RAPE">Rape</option>
-                    <option value="THEFT">Theft</option>
-                    <option value="OTHER">Other</option>
+
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Incident type
+                  </label>
+
+                  <select
+                    value={
+                      analyticsType
+                    }
+                    onChange={(e) =>
+                      updateAnalyticsFilter(
+                        "type",
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  >
+
+                    <option value="ALL">
+                      All incidents
+                    </option>
+
+                    <option value="CHILD_ABUSE">
+                      Child abuse
+                    </option>
+
+                    <option value="FIGHT">
+                      Fight
+                    </option>
+
+                    <option value="RAPE">
+                      Rape
+                    </option>
+
+                    <option value="THEFT">
+                      Theft
+                    </option>
+
+                    <option value="OTHER">
+                      Other
+                    </option>
+
                   </select>
+
                 </div>
+
                 <div className="min-w-0 flex-1">
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Town</label>
-                  <select value={analyticsTown} onChange={(e) => updateAnalyticsFilter("town", e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                    <option value="ALL">All towns</option>
-                    {Array.from(new Set(reports.map((r) => String(r.town || "Unknown")))).sort((a, b) => a.localeCompare(b)).map((town) => <option key={town} value={town}>{town}</option>)}
+
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Town
+                  </label>
+
+                  <select
+                    value={
+                      analyticsTown
+                    }
+                    onChange={(e) =>
+                      updateAnalyticsFilter(
+                        "town",
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  >
+
+                    <option value="ALL">
+                      All towns
+                    </option>
+
+                    {Array.from(
+                      new Set(
+                        reports.map(
+                          (r) =>
+                            String(
+                              r.town ||
+                                "Unknown"
+                            )
+                        )
+                      )
+                    )
+                      .sort((a, b) =>
+                        a.localeCompare(b)
+                      )
+                      .map((town) => (
+                        <option
+                          key={town}
+                          value={town}
+                        >
+                          {town}
+                        </option>
+                      ))}
+
                   </select>
+
                 </div>
+
                 <div className="min-w-0 flex-1">
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Status</label>
-                  <select value={analyticsStatus} onChange={(e) => updateAnalyticsFilter("status", e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                    <option value="ALL">All statuses</option>
-                    <option value="NEW">New</option>
-                    <option value="ACKNOWLEDGED">Acknowledged</option>
-                    <option value="IN_PROGRESS">In progress</option>
-                    <option value="RESOLVED">Resolved</option>
+
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Status
+                  </label>
+
+                  <select
+                    value={
+                      analyticsStatus
+                    }
+                    onChange={(e) =>
+                      updateAnalyticsFilter(
+                        "status",
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  >
+
+                    <option value="ALL">
+                      All statuses
+                    </option>
+
+                    <option value="NEW">
+                      New
+                    </option>
+
+                    <option value="ACKNOWLEDGED">
+                      Acknowledged
+                    </option>
+
+                    <option value="IN_PROGRESS">
+                      In progress
+                    </option>
+
+                    <option value="RESOLVED">
+                      Resolved
+                    </option>
+
                   </select>
+
                 </div>
+
                 <div className="min-w-0 flex-1">
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Reporting period</label>
-                  <select value={analyticsPeriod} onChange={(e) => updateAnalyticsFilter("period", e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100">
-                    <option value="all">All time</option>
-                    <option value="1">Last 24 hours</option>
-                    <option value="7">Last 7 days</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
+
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Reporting period
+                  </label>
+
+                  <select
+                    value={
+                      analyticsPeriod
+                    }
+                    onChange={(e) =>
+                      updateAnalyticsFilter(
+                        "period",
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  >
+
+                    <option value="all">
+                      All time
+                    </option>
+
+                    <option value="1">
+                      Last 24 hours
+                    </option>
+
+                    <option value="7">
+                      Last 7 days
+                    </option>
+
+                    <option value="30">
+                      Last 30 days
+                    </option>
+
+                    <option value="90">
+                      Last 90 days
+                    </option>
+
                   </select>
+
                 </div>
-                <button onClick={resetAnalyticsFilters} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100">Reset</button>
+
+                <button
+                  onClick={
+                    resetAnalyticsFilters
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  Reset
+                </button>
+
               </div>
-              <p className="mt-3 text-[11px] text-slate-500">Filters update the analytics automatically.</p>
+
+              <p className="mt-3 text-[11px] text-slate-500">
+                Filters update the analytics
+                automatically.
+              </p>
+
             </div>
 
-            {analyticsLoading && !analytics ? (
-              <p className="py-10 text-center text-sm text-slate-500">Loading analytics…</p>
+            {analyticsLoading &&
+            !analytics ? (
+
+              <p className="py-10 text-center text-sm text-slate-500">
+                Loading analytics…
+              </p>
+
             ) : analytics ? (
+
               <>
+
                 <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-5">
+
                   {[
-                    ["Total reports", analytics.summary.totalReports, "bg-slate-950 text-white", "↗"],
-                    ["New", analytics.summary.newReports, "bg-red-50 text-red-700 border-red-100", "!"],
-                    ["Acknowledged", analytics.summary.acknowledgedReports, "bg-amber-50 text-amber-700 border-amber-100", "✓"],
-                    ["Resolved", analytics.summary.resolvedReports, "bg-emerald-50 text-emerald-700 border-emerald-100", "✓"],
-                    ["Avg. response", `${analytics.averageAcknowledgementTimeMinutes.toFixed(1)} min`, "bg-blue-50 text-blue-700 border-blue-100", "◷"],
-                  ].map(([label, value, style, icon]) => (
-                    <div key={String(label)} className={`rounded-xl border p-4 ${style}`}>
-                      <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-bold uppercase tracking-wide opacity-70">{label}</p><span className="text-sm font-bold opacity-80">{icon}</span></div>
-                      <p className="mt-2 text-2xl font-extrabold tracking-tight">{value}</p>
-                    </div>
-                  ))}
+                    [
+                      "Total reports",
+                      analytics.summary
+                        .totalReports,
+                      "bg-slate-950 text-white",
+                      "↗",
+                    ],
+                    [
+                      "New",
+                      analytics.summary
+                        .newReports,
+                      "bg-red-50 text-red-700 border-red-100",
+                      "!",
+                    ],
+                    [
+                      "Acknowledged",
+                      analytics.summary
+                        .acknowledgedReports,
+                      "bg-amber-50 text-amber-700 border-amber-100",
+                      "✓",
+                    ],
+                    [
+                      "Resolved",
+                      analytics.summary
+                        .resolvedReports,
+                      "bg-emerald-50 text-emerald-700 border-emerald-100",
+                      "✓",
+                    ],
+                    [
+                      "Avg. response",
+                      `${analytics.averageAcknowledgementTimeMinutes.toFixed(
+                        1
+                      )} min`,
+                      "bg-blue-50 text-blue-700 border-blue-100",
+                      "◷",
+                    ],
+                  ].map(
+                    ([
+                      label,
+                      value,
+                      style,
+                      icon,
+                    ]) => (
+                      <div
+                        key={String(
+                          label
+                        )}
+                        className={`rounded-xl border p-4 ${style}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">
+                            {label}
+                          </p>
+
+                          <span className="text-sm font-bold opacity-80">
+                            {icon}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 text-2xl font-extrabold tracking-tight">
+                          {value}
+                        </p>
+                      </div>
+                    )
+                  )}
+
                 </div>
 
                 <div className="mt-5 grid gap-5 lg:grid-cols-2">
+
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-slate-950">Incidents by type</h3><p className="mt-1 text-[11px] text-slate-500">Category distribution for the selected filters.</p></div><span className="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold text-red-600">{analytics.summary.totalReports} total</span></div>
-                    <div className="mt-5 space-y-4">
-                      {analytics.reportsByType.length ? analytics.reportsByType.map((item) => { const max = Math.max(...analytics.reportsByType.map((x) => x.count), 1); const pct = Math.round((item.count / Math.max(analytics.summary.totalReports, 1)) * 100); return <div key={item.type}><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-semibold text-slate-700">{formatIncidentType(item.type)}</span><span className="font-bold text-slate-950">{item.count} <span className="font-normal text-slate-400">({pct}%)</span></span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-red-500 transition-all duration-500" style={{ width: `${Math.max(4, (item.count / max) * 100)}%` }} /></div></div>; }) : <p className="py-8 text-center text-xs text-slate-400">No data for this selection.</p>}
+
+                    <div className="flex items-center justify-between">
+
+                      <div>
+
+                        <h3 className="text-sm font-bold text-slate-950">
+                          Incidents by type
+                        </h3>
+
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Category distribution for
+                          the selected filters.
+                        </p>
+
+                      </div>
+
+                      <span className="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold text-red-600">
+                        {
+                          analytics.summary
+                            .totalReports
+                        }{" "}
+                        total
+                      </span>
+
                     </div>
+
+                    <div className="mt-5 space-y-4">
+
+                      {analytics.reportsByType.length ? (
+
+                        analytics.reportsByType.map(
+                          (item) => {
+
+                            const max =
+                              Math.max(
+                                ...analytics.reportsByType.map(
+                                  (x) =>
+                                    x.count
+                                ),
+                                1
+                              );
+
+                            const pct =
+                              Math.round(
+                                (item.count /
+                                  Math.max(
+                                    analytics
+                                      .summary
+                                      .totalReports,
+                                    1
+                                  )) *
+                                  100
+                              );
+
+                            return (
+                              <div
+                                key={
+                                  item.type
+                                }
+                              >
+
+                                <div className="mb-1.5 flex items-center justify-between text-xs">
+
+                                  <span className="font-semibold text-slate-700">
+                                    {formatIncidentType(
+                                      item.type
+                                    )}
+                                  </span>
+
+                                  <span className="font-bold text-slate-950">
+                                    {
+                                      item.count
+                                    }{" "}
+                                    <span className="font-normal text-slate-400">
+                                      (
+                                      {pct}
+                                      %)
+                                    </span>
+                                  </span>
+
+                                </div>
+
+                                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+
+                                  <div
+                                    className="h-full rounded-full bg-red-500 transition-all duration-500"
+                                    style={{
+                                      width: `${Math.max(
+                                        4,
+                                        (item.count /
+                                          max) *
+                                          100
+                                      )}%`,
+                                    }}
+                                  />
+
+                                </div>
+
+                              </div>
+                            );
+                          }
+                        )
+
+                      ) : (
+
+                        <p className="py-8 text-center text-xs text-slate-400">
+                          No data for this
+                          selection.
+                        </p>
+
+                      )}
+
+                    </div>
+
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div><h3 className="text-sm font-bold text-slate-950">Status distribution</h3><p className="mt-1 text-[11px] text-slate-500">Current operational state of the selected incidents.</p></div>
-                    <div className="mt-5 grid grid-cols-2 gap-3">
-                      {analytics.reportsByStatus.map((item) => { const pct = Math.round((item.count / Math.max(analytics.summary.totalReports, 1)) * 100); const statusStyle = item.status === "RESOLVED" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : item.status === "NEW" ? "bg-red-50 border-red-100 text-red-700" : item.status === "ACKNOWLEDGED" ? "bg-amber-50 border-amber-100 text-amber-700" : "bg-blue-50 border-blue-100 text-blue-700"; return <div key={item.status} className={`rounded-xl border p-3 ${statusStyle}`}><p className="text-[10px] font-bold uppercase tracking-wide opacity-75">{formatStatus(item.status)}</p><div className="mt-2 flex items-end justify-between"><p className="text-xl font-extrabold">{item.count}</p><p className="text-[10px] font-bold">{pct}%</p></div></div>; })}
+
+                    <div>
+
+                      <h3 className="text-sm font-bold text-slate-950">
+                        Status distribution
+                      </h3>
+
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Current operational state of
+                        the selected incidents.
+                      </p>
+
                     </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+
+                      {analytics.reportsByStatus.map(
+                        (item) => {
+
+                          const pct =
+                            Math.round(
+                              (item.count /
+                                Math.max(
+                                  analytics
+                                    .summary
+                                    .totalReports,
+                                  1
+                                )) *
+                                100
+                            );
+
+                          const statusStyle =
+                            item.status ===
+                            "RESOLVED"
+                              ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                              : item.status ===
+                                "NEW"
+                              ? "bg-red-50 border-red-100 text-red-700"
+                              : item.status ===
+                                "ACKNOWLEDGED"
+                              ? "bg-amber-50 border-amber-100 text-amber-700"
+                              : "bg-blue-50 border-blue-100 text-blue-700";
+
+                          return (
+                            <div
+                              key={
+                                item.status
+                              }
+                              className={`rounded-xl border p-3 ${statusStyle}`}
+                            >
+
+                              <p className="text-[10px] font-bold uppercase tracking-wide opacity-75">
+                                {formatStatus(
+                                  item.status
+                                )}
+                              </p>
+
+                              <div className="mt-2 flex items-end justify-between">
+
+                                <p className="text-xl font-extrabold">
+                                  {
+                                    item.count
+                                  }
+                                </p>
+
+                                <p className="text-[10px] font-bold">
+                                  {pct}%
+                                </p>
+
+                              </div>
+
+                            </div>
+                          );
+                        }
+                      )}
+
+                    </div>
+
                   </div>
+
                 </div>
 
                 <div className="mt-5 grid gap-5 lg:grid-cols-3">
+
                   <div className="rounded-2xl border border-slate-200 bg-slate-950 p-5 text-white lg:col-span-2">
-                    <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold">Reports over time</h3><p className="mt-1 text-[11px] text-slate-400">Daily incident volume under the active filters.</p></div><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-slate-300">Daily</span></div>
-                    {analytics.reportsOverTime.length ? <div className="mt-6 flex h-48 items-end gap-2 overflow-x-auto border-b border-white/10 pb-1">{analytics.reportsOverTime.map((item) => { const max = Math.max(...analytics.reportsOverTime.map((x) => x.count), 1); const height = Math.max(8, Math.round((item.count / max) * 100)); return <div key={item.date} className="group flex min-w-10 flex-1 flex-col items-center justify-end gap-2"><div className="relative flex h-36 w-full items-end justify-center"><div title={`${item.date}: ${item.count}`} className="w-5 min-w-5 rounded-t bg-red-500 transition-all duration-300 group-hover:bg-red-400" style={{ height: `${height}%` }} /><span className="absolute -top-5 text-[9px] font-bold text-slate-300 opacity-0 transition-opacity group-hover:opacity-100">{item.count}</span></div><span className="text-[9px] text-slate-500">{item.date.slice(5)}</span></div>; })}</div> : <p className="py-16 text-center text-xs text-slate-500">No report activity for this selection.</p>}
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div>
+
+                        <h3 className="text-sm font-bold">
+                          Reports over time
+                        </h3>
+
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          Daily incident volume under
+                          the active filters.
+                        </p>
+
+                      </div>
+
+                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-slate-300">
+                        Daily
+                      </span>
+
+                    </div>
+
+                    {analytics.reportsOverTime.length ? (
+
+                      <div className="mt-6 flex h-48 items-end gap-2 overflow-x-auto border-b border-white/10 pb-1">
+
+                        {analytics.reportsOverTime.map(
+                          (item) => {
+
+                            const max =
+                              Math.max(
+                                ...analytics.reportsOverTime.map(
+                                  (x) =>
+                                    x.count
+                                ),
+                                1
+                              );
+
+                            const height =
+                              Math.max(
+                                8,
+                                Math.round(
+                                  (item.count /
+                                    max) *
+                                    100
+                                )
+                              );
+
+                            return (
+                              <div
+                                key={
+                                  item.date
+                                }
+                                className="group flex min-w-10 flex-1 flex-col items-center justify-end gap-2"
+                              >
+
+                                <div className="relative flex h-36 w-full items-end justify-center">
+
+                                  <div
+                                    title={`${item.date}: ${item.count}`}
+                                    className="w-5 min-w-5 rounded-t bg-red-500 transition-all duration-300 group-hover:bg-red-400"
+                                    style={{
+                                      height: `${height}%`,
+                                    }}
+                                  />
+
+                                  <span className="absolute -top-5 text-[9px] font-bold text-slate-300 opacity-0 transition-opacity group-hover:opacity-100">
+                                    {
+                                      item.count
+                                    }
+                                  </span>
+
+                                </div>
+
+                                <span className="text-[9px] text-slate-500">
+                                  {item.date.slice(
+                                    5
+                                  )}
+                                </span>
+
+                              </div>
+                            );
+                          }
+                        )}
+
+                      </div>
+
+                    ) : (
+
+                      <p className="py-16 text-center text-xs text-slate-500">
+                        No report activity for
+                        this selection.
+                      </p>
+
+                    )}
+
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <h3 className="text-sm font-bold text-slate-950">Response performance</h3><p className="mt-1 text-[11px] text-slate-500">Average time from report creation to action.</p>
+
+                    <h3 className="text-sm font-bold text-slate-950">
+                      Response performance
+                    </h3>
+
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Average time from report
+                      creation to action.
+                    </p>
+
                     <div className="mt-5 space-y-4">
-                      <div className="rounded-xl bg-blue-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Acknowledgement</p><p className="mt-1 text-2xl font-extrabold text-blue-950">{analytics.averageAcknowledgementTimeMinutes.toFixed(1)} <span className="text-sm font-semibold">min</span></p></div>
-                      <div className="rounded-xl bg-violet-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Resolution</p><p className="mt-1 text-2xl font-extrabold text-violet-950">{analytics.averageResolutionTimeMinutes.toFixed(1)} <span className="text-sm font-semibold">min</span></p></div>
+
+                      <div className="rounded-xl bg-blue-50 p-4">
+
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">
+                          Acknowledgement
+                        </p>
+
+                        <p className="mt-1 text-2xl font-extrabold text-blue-950">
+                          {analytics.averageAcknowledgementTimeMinutes.toFixed(
+                            1
+                          )}{" "}
+                          <span className="text-sm font-semibold">
+                            min
+                          </span>
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl bg-violet-50 p-4">
+
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">
+                          Resolution
+                        </p>
+
+                        <p className="mt-1 text-2xl font-extrabold text-violet-950">
+                          {analytics.averageResolutionTimeMinutes.toFixed(
+                            1
+                          )}{" "}
+                          <span className="text-sm font-semibold">
+                            min
+                          </span>
+                        </p>
+
+                      </div>
+
                     </div>
+
                   </div>
+
                 </div>
 
                 <div className="mt-5 grid gap-5 lg:grid-cols-2">
+
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <h3 className="text-sm font-bold text-slate-950">Incidents by town</h3><p className="mt-1 text-[11px] text-slate-500">Locations with the highest incident volume in this selection.</p>
-                    <div className="mt-4 space-y-3">{analytics.reportsByTown.length ? analytics.reportsByTown.slice(0, 8).map((item) => { const max = Math.max(...analytics.reportsByTown.map((x) => x.count), 1); return <div key={item.town}><div className="mb-1 flex justify-between text-xs"><span className="font-semibold text-slate-700">{item.town}</span><span className="font-bold text-slate-950">{item.count}</span></div><div className="h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-800" style={{ width: `${Math.max(4, (item.count / max) * 100)}%` }} /></div></div>; }) : <p className="py-8 text-center text-xs text-slate-400">No town data for this selection.</p>}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <h3 className="text-sm font-bold text-slate-950">Active analysis</h3><p className="mt-1 text-[11px] text-slate-500">The dashboard is currently analysing:</p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">{analyticsType === "ALL" ? "All incident types" : formatIncidentType(analyticsType)}</span>
-                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">{analyticsTown === "ALL" ? "All towns" : analyticsTown}</span>
-                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">{analyticsStatus === "ALL" ? "All statuses" : formatStatus(analyticsStatus)}</span>
-                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">{analyticsPeriod === "all" ? "All time" : analyticsPeriod === "1" ? "Last 24 hours" : `Last ${analyticsPeriod} days`}</span>
+
+                    <h3 className="text-sm font-bold text-slate-950">
+                      Incidents by town
+                    </h3>
+
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Locations with the highest
+                      incident volume in this
+                      selection.
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+
+                      {analytics.reportsByTown.length ? (
+
+                        analytics.reportsByTown
+                          .slice(0, 8)
+                          .map((item) => {
+
+                            const max =
+                              Math.max(
+                                ...analytics.reportsByTown.map(
+                                  (x) =>
+                                    x.count
+                                ),
+                                1
+                              );
+
+                            return (
+                              <div
+                                key={
+                                  item.town
+                                }
+                              >
+
+                                <div className="mb-1 flex justify-between text-xs">
+
+                                  <span className="font-semibold text-slate-700">
+                                    {
+                                      item.town
+                                    }
+                                  </span>
+
+                                  <span className="font-bold text-slate-950">
+                                    {
+                                      item.count
+                                    }
+                                  </span>
+
+                                </div>
+
+                                <div className="h-1.5 rounded-full bg-slate-100">
+
+                                  <div
+                                    className="h-full rounded-full bg-slate-800"
+                                    style={{
+                                      width: `${Math.max(
+                                        4,
+                                        (item.count /
+                                          max) *
+                                          100
+                                      )}%`,
+                                    }}
+                                  />
+
+                                </div>
+
+                              </div>
+                            );
+                          })
+
+                      ) : (
+
+                        <p className="py-8 text-center text-xs text-slate-400">
+                          No town data for this
+                          selection.
+                        </p>
+
+                      )}
+
                     </div>
-                    <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-700">Resolution rate</p><div className="mt-2 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, Math.round((analytics.summary.resolvedReports / Math.max(analytics.summary.totalReports, 1)) * 100))}%` }} /></div><span className="text-sm font-extrabold text-slate-950">{Math.round((analytics.summary.resolvedReports / Math.max(analytics.summary.totalReports, 1)) * 100)}%</span></div></div>
+
                   </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+
+                    <h3 className="text-sm font-bold text-slate-950">
+                      Active analysis
+                    </h3>
+
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      The dashboard is currently
+                      analysing:
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
+                        {analyticsType ===
+                        "ALL"
+                          ? "All incident types"
+                          : formatIncidentType(
+                              analyticsType
+                            )}
+                      </span>
+
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
+                        {analyticsTown ===
+                        "ALL"
+                          ? "All towns"
+                          : analyticsTown}
+                      </span>
+
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
+                        {analyticsStatus ===
+                        "ALL"
+                          ? "All statuses"
+                          : formatStatus(
+                              analyticsStatus
+                            )}
+                      </span>
+
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
+                        {analyticsPeriod ===
+                        "all"
+                          ? "All time"
+                          : analyticsPeriod ===
+                            "1"
+                          ? "Last 24 hours"
+                          : `Last ${analyticsPeriod} days`}
+                      </span>
+
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+
+                      <p className="text-xs font-semibold text-slate-700">
+                        Resolution rate
+                      </p>
+
+                      <div className="mt-2 flex items-center gap-3">
+
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+
+                          <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.round(
+                                  (analytics
+                                    .summary
+                                    .resolvedReports /
+                                    Math.max(
+                                      analytics
+                                        .summary
+                                        .totalReports,
+                                      1
+                                    )) *
+                                    100
+                                )
+                              )}%`,
+                            }}
+                          />
+
+                        </div>
+
+                        <span className="text-sm font-extrabold text-slate-950">
+                          {Math.round(
+                            (analytics
+                              .summary
+                              .resolvedReports /
+                              Math.max(
+                                analytics
+                                  .summary
+                                  .totalReports,
+                                1
+                              )) *
+                              100
+                          )}
+                          %
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
                 </div>
+
               </>
-            ) : <p className="py-10 text-center text-sm text-slate-400">Analytics are currently unavailable.</p>}
+
+            ) : (
+
+              <p className="py-10 text-center text-sm text-slate-400">
+                Analytics are currently
+                unavailable.
+              </p>
+
+            )}
+
           </div>
+
         </section>
 
         {/* =================================================
@@ -1961,9 +3047,17 @@ export default function AdminPage() {
       fallback={
         <main className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
           <div className="text-center">
+
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-red-500" />
-            <p className="text-sm font-medium text-slate-300">Loading administrator dashboard...</p>
-            <p className="mt-1 text-xs text-slate-500">SOS-Kamer Incident Response</p>
+
+            <p className="text-sm font-medium text-slate-300">
+              Loading administrator dashboard...
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              SOS-Kamer Incident Response
+            </p>
+
           </div>
         </main>
       }
