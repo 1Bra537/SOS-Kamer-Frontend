@@ -7,47 +7,59 @@ import {
   useRef,
   useState,
 } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "aws-amplify/auth";
 
 import { configureAmplify } from "../../lib/amplify";
+
 import {
+  createAnonymousReport,
   createReport,
+  getAnonymousUploadUrl,
   getUploadUrl,
   uploadEvidence,
 } from "../../lib/api";
 
 import SignOutButton from "../../components/SignOutButton";
 
+// =========================================================
+// CONSTANTS
+// =========================================================
+
 const incidentTypes = [
   {
     value: "CHILD_ABUSE",
     label: "Child abuse",
-    description: "Abuse or harm involving a child",
+    description:
+      "Abuse or harm involving a child",
     critical: true,
   },
   {
     value: "FIGHT",
     label: "Fight / assault",
-    description: "Physical violence or assault",
+    description:
+      "Physical violence or assault",
     critical: false,
   },
   {
     value: "THEFT",
     label: "Theft",
-    description: "Property or belongings taken",
+    description:
+      "Property or belongings taken",
     critical: false,
   },
   {
     value: "OTHER",
     label: "Other incident",
-    description: "Another incident requiring attention",
+    description:
+      "Another incident requiring attention",
     critical: false,
   },
 ];
 
-const ALLOWED_TYPES = [
+const ALLOWED_EVIDENCE_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -56,17 +68,10 @@ const ALLOWED_TYPES = [
   "video/quicktime",
 ];
 
-const VOICE_ALLOWED_TYPES = [
-  "audio/webm",
-  "audio/ogg",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/wav",
-];
-
 const MAX_FILES = 10;
-const MAX_FILE_SIZE = 100 * 1024 * 1024;
-const MAX_VOICE_SIZE = 25 * 1024 * 1024;
+
+const MAX_FILE_SIZE =
+  100 * 1024 * 1024;
 
 type EvidenceFile = {
   id: string;
@@ -74,68 +79,229 @@ type EvidenceFile = {
   previewUrl: string;
 };
 
-type DescriptionType = "TEXT" | "VOICE";
+type DescriptionType =
+  | "TEXT"
+  | "VOICE";
+
+type ReportMode =
+  | "AUTHENTICATED"
+  | "ANONYMOUS";
+
+// =========================================================
+// COMPONENT
+// =========================================================
 
 export default function ReportPage() {
   const router = useRouter();
 
-  const [incidentType, setIncidentType] = useState("");
-  const [description, setDescription] = useState("");
-  const [descriptionType, setDescriptionType] =
-    useState<DescriptionType>("TEXT");
+  // -------------------------------------------------------
+  // Authentication / report mode
+  // -------------------------------------------------------
 
-  const [voiceFile, setVoiceFile] = useState<File | null>(null);
-  const [voicePreviewUrl, setVoicePreviewUrl] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPreparingVoice, setIsPreparingVoice] = useState(false);
+  const [
+    isAuthenticated,
+    setIsAuthenticated,
+  ] = useState(false);
 
-  const [town, setTown] = useState("");
-  const [quarter, setQuarter] = useState("");
+  const [
+    authChecked,
+    setAuthChecked,
+  ] = useState(false);
 
-  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(
+  const [
+    reportMode,
+    setReportMode,
+  ] = useState<ReportMode>(
+    "ANONYMOUS"
+  );
+
+  // -------------------------------------------------------
+  // Report state
+  // -------------------------------------------------------
+
+  const [
+    incidentType,
+    setIncidentType,
+  ] = useState("");
+
+  const [
+    descriptionType,
+    setDescriptionType,
+  ] = useState<DescriptionType>(
+    "TEXT"
+  );
+
+  const [
+    description,
+    setDescription,
+  ] = useState("");
+
+  const [
+    town,
+    setTown,
+  ] = useState("");
+
+  const [
+    quarter,
+    setQuarter,
+  ] = useState("");
+
+  // -------------------------------------------------------
+  // Evidence
+  // -------------------------------------------------------
+
+  const [
+    evidenceFiles,
+    setEvidenceFiles,
+  ] = useState<EvidenceFile[]>(
     []
   );
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [reportId, setReportId] = useState("");
-  const [error, setError] = useState("");
+  // -------------------------------------------------------
+  // Voice recording
+  // -------------------------------------------------------
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const voiceChunksRef = useRef<Blob[]>([]);
+  const [
+    voiceFile,
+    setVoiceFile,
+  ] = useState<File | null>(null);
+
+  const [
+    voicePreviewUrl,
+    setVoicePreviewUrl,
+  ] = useState("");
+
+  const [
+    isRecording,
+    setIsRecording,
+  ] = useState(false);
+
+  const [
+    recordingSeconds,
+    setRecordingSeconds,
+  ] = useState(0);
+
+  const mediaRecorderRef =
+    useRef<MediaRecorder | null>(
+      null
+    );
+
+  const mediaStreamRef =
+    useRef<MediaStream | null>(
+      null
+    );
+
+  const recordingChunksRef =
+    useRef<Blob[]>([]);
+
+  const recordingTimerRef =
+    useRef<ReturnType<
+      typeof setInterval
+    > | null>(null);
+
+  // -------------------------------------------------------
+  // Submission
+  // -------------------------------------------------------
+
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
+
+  const [
+    submitted,
+    setSubmitted,
+  ] = useState(false);
+
+  const [
+    reportId,
+    setReportId,
+  ] = useState("");
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  // =======================================================
+  // AUTHENTICATION CHECK
+  // =======================================================
 
   useEffect(() => {
-    (async () => {
+    async function checkAuthentication() {
       try {
         configureAmplify();
+
         await getCurrentUser();
+
+        setIsAuthenticated(true);
+
+        // Existing signed-in users default to
+        // their normal authenticated reporting mode.
+        setReportMode(
+          "AUTHENTICATED"
+        );
       } catch {
-        router.replace("/login");
+        // Not signed in is perfectly valid now.
+        // Anonymous reporting is available.
+        setIsAuthenticated(false);
+        setReportMode("ANONYMOUS");
+      } finally {
+        setAuthChecked(true);
       }
-    })();
-  }, [router]);
+    }
+
+    checkAuthentication();
+  }, []);
+
+  // =======================================================
+  // CLEANUP
+  // =======================================================
 
   useEffect(() => {
     return () => {
+      evidenceFiles.forEach(
+        (item) => {
+          URL.revokeObjectURL(
+            item.previewUrl
+          );
+        }
+      );
+
       if (voicePreviewUrl) {
-        URL.revokeObjectURL(voicePreviewUrl);
+        URL.revokeObjectURL(
+          voicePreviewUrl
+        );
       }
 
-      evidenceFiles.forEach((item) => {
-        URL.revokeObjectURL(item.previewUrl);
-      });
-
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => {
-          track.stop();
-        });
+      if (
+        recordingTimerRef.current
+      ) {
+        clearInterval(
+          recordingTimerRef.current
+        );
       }
+
+      mediaStreamRef.current
+        ?.getTracks()
+        .forEach((track) =>
+          track.stop()
+        );
     };
-  }, [voicePreviewUrl, evidenceFiles]);
+  }, []);
 
-  function validateFile(file: File) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
+  // =======================================================
+  // EVIDENCE VALIDATION
+  // =======================================================
+
+  function validateEvidenceFile(
+    file: File
+  ) {
+    if (
+      !ALLOWED_EVIDENCE_TYPES.includes(
+        file.type
+      )
+    ) {
       throw new Error(
         `${file.name}: unsupported file type.`
       );
@@ -148,36 +314,55 @@ export default function ReportPage() {
     }
   }
 
-  function addFiles(files: FileList | File[]) {
+  // =======================================================
+  // ADD EVIDENCE
+  // =======================================================
+
+  function addFiles(
+    files: FileList | File[]
+  ) {
     setError("");
 
-    const incomingFiles = Array.from(files);
+    const incomingFiles =
+      Array.from(files);
 
     if (
-      evidenceFiles.length + incomingFiles.length >
+      evidenceFiles.length +
+        incomingFiles.length >
       MAX_FILES
     ) {
       setError(
         `You can attach a maximum of ${MAX_FILES} evidence files.`
       );
+
       return;
     }
 
     try {
-      const newEvidence = incomingFiles.map((file) => {
-        validateFile(file);
+      const newEvidence =
+        incomingFiles.map(
+          (file) => {
+            validateEvidenceFile(
+              file
+            );
 
-        return {
-          id: crypto.randomUUID(),
-          file,
-          previewUrl: URL.createObjectURL(file),
-        };
-      });
+            return {
+              id: crypto.randomUUID(),
+              file,
+              previewUrl:
+                URL.createObjectURL(
+                  file
+                ),
+            };
+          }
+        );
 
-      setEvidenceFiles((current) => [
-        ...current,
-        ...newEvidence,
-      ]);
+      setEvidenceFiles(
+        (current) => [
+          ...current,
+          ...newEvidence,
+        ]
+      );
     } catch (err: any) {
       setError(
         err?.message ||
@@ -196,39 +381,48 @@ export default function ReportPage() {
     e.target.value = "";
   }
 
-  function removeFile(id: string) {
-    setEvidenceFiles((current) => {
-      const fileToRemove = current.find(
-        (item) => item.id === id
-      );
+  // =======================================================
+  // REMOVE EVIDENCE
+  // =======================================================
 
-      if (fileToRemove) {
-        URL.revokeObjectURL(fileToRemove.previewUrl);
+  function removeFile(
+    id: string
+  ) {
+    setEvidenceFiles(
+      (current) => {
+        const fileToRemove =
+          current.find(
+            (item) =>
+              item.id === id
+          );
+
+        if (fileToRemove) {
+          URL.revokeObjectURL(
+            fileToRemove.previewUrl
+          );
+        }
+
+        return current.filter(
+          (item) =>
+            item.id !== id
+        );
       }
-
-      return current.filter(
-        (item) => item.id !== id
-      );
-    });
+    );
   }
 
-  function clearVoiceRecording() {
-    if (voicePreviewUrl) {
-      URL.revokeObjectURL(voicePreviewUrl);
-    }
-
-    setVoicePreviewUrl("");
-    setVoiceFile(null);
-  }
+  // =======================================================
+  // VOICE MIME TYPE
+  // =======================================================
 
   function getSupportedRecordingMimeType() {
     if (
-      typeof MediaRecorder === "undefined"
+      typeof MediaRecorder ===
+      "undefined"
     ) {
       return "";
     }
 
-    const supportedTypes = [
+    const mimeTypes = [
       "audio/webm;codecs=opus",
       "audio/webm",
       "audio/ogg;codecs=opus",
@@ -236,80 +430,86 @@ export default function ReportPage() {
       "audio/mp4",
     ];
 
-    return (
-      supportedTypes.find((type) =>
-        MediaRecorder.isTypeSupported(type)
-      ) || ""
-    );
+    for (const mimeType of mimeTypes) {
+      if (
+        MediaRecorder.isTypeSupported(
+          mimeType
+        )
+      ) {
+        return mimeType;
+      }
+    }
+
+    return "";
   }
+
+  // =======================================================
+  // START VOICE RECORDING
+  // =======================================================
 
   async function startVoiceRecording() {
     setError("");
-    setIsPreparingVoice(true);
+
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return;
+    }
+
+    if (
+      typeof MediaRecorder ===
+      "undefined"
+    ) {
+      setError(
+        "Voice recording is not supported by this browser."
+      );
+
+      return;
+    }
 
     try {
-      if (
-        typeof window === "undefined" ||
-        typeof navigator === "undefined"
-      ) {
-        throw new Error(
-          "Voice recording is not available in this environment."
-        );
-      }
-
-      if (
-        !navigator.mediaDevices ||
-        !navigator.mediaDevices.getUserMedia
-      ) {
-        throw new Error(
-          "Your browser does not support microphone recording."
-        );
-      }
-
-      if (typeof MediaRecorder === "undefined") {
-        throw new Error(
-          "Your browser does not support voice recording."
-        );
-      }
-
-      clearVoiceRecording();
-
       const stream =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-
-      mediaStreamRef.current = stream;
-      voiceChunksRef.current = [];
+        await navigator.mediaDevices.getUserMedia(
+          {
+            audio: true,
+          }
+        );
 
       const mimeType =
         getSupportedRecordingMimeType();
 
-      const recorder = mimeType
-        ? new MediaRecorder(stream, {
-            mimeType,
-          })
-        : new MediaRecorder(stream);
+      const recorder =
+        mimeType
+          ? new MediaRecorder(
+              stream,
+              {
+                mimeType,
+              }
+            )
+          : new MediaRecorder(
+              stream
+            );
 
-      mediaRecorderRef.current = recorder;
+      recordingChunksRef.current =
+        [];
 
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          voiceChunksRef.current.push(event.data);
-        }
-      };
+      mediaStreamRef.current =
+        stream;
 
-      recorder.onerror = () => {
-        setError(
-          "Something went wrong while recording the voice message."
-        );
+      mediaRecorderRef.current =
+        recorder;
 
-        setIsRecording(false);
-
-        if (mediaStreamRef.current) {
-          mediaStreamRef.current
-            .getTracks()
-            .forEach((track) => track.stop());
+      recorder.ondataavailable = (
+        event
+      ) => {
+        if (
+          event.data &&
+          event.data.size > 0
+        ) {
+          recordingChunksRef.current.push(
+            event.data
+          );
         }
       };
 
@@ -319,30 +519,27 @@ export default function ReportPage() {
           mimeType ||
           "audio/webm";
 
-        const blob = new Blob(
-          voiceChunksRef.current,
-          {
-            type: actualMimeType,
-          }
-        );
+        const blob =
+          new Blob(
+            recordingChunksRef.current,
+            {
+              type: actualMimeType,
+            }
+          );
 
-        if (blob.size === 0) {
-          setError(
-            "No audio was recorded. Please try again."
-          );
-        } else if (blob.size > MAX_VOICE_SIZE) {
-          setError(
-            "The voice message is larger than 25 MB. Please record a shorter message."
-          );
-        } else {
-          const extension =
-            actualMimeType.includes("ogg")
-              ? "ogg"
-              : actualMimeType.includes("mp4")
+        const extension =
+          actualMimeType.includes(
+            "ogg"
+          )
+            ? "ogg"
+            : actualMimeType.includes(
+                "mp4"
+              )
               ? "mp4"
               : "webm";
 
-          const file = new File(
+        const file =
+          new File(
             [blob],
             `voice-description-${Date.now()}.${extension}`,
             {
@@ -350,180 +547,237 @@ export default function ReportPage() {
             }
           );
 
-          if (voicePreviewUrl) {
-            URL.revokeObjectURL(voicePreviewUrl);
-          }
-
-          const previewUrl =
-            URL.createObjectURL(blob);
-
-          setVoiceFile(file);
-          setVoicePreviewUrl(previewUrl);
+        if (
+          voicePreviewUrl
+        ) {
+          URL.revokeObjectURL(
+            voicePreviewUrl
+          );
         }
 
-        voiceChunksRef.current = [];
+        const previewUrl =
+          URL.createObjectURL(
+            blob
+          );
 
-        if (mediaStreamRef.current) {
-          mediaStreamRef.current
-            .getTracks()
-            .forEach((track) => track.stop());
+        setVoiceFile(file);
+        setVoicePreviewUrl(
+          previewUrl
+        );
 
-          mediaStreamRef.current = null;
-        }
-
-        mediaRecorderRef.current = null;
         setIsRecording(false);
+
+        if (
+          recordingTimerRef.current
+        ) {
+          clearInterval(
+            recordingTimerRef.current
+          );
+
+          recordingTimerRef.current =
+            null;
+        }
+
+        stream
+          .getTracks()
+          .forEach(
+            (track) =>
+              track.stop()
+          );
+
+        mediaStreamRef.current =
+          null;
       };
 
       recorder.start();
-      setIsRecording(true);
-    } catch (err: any) {
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current
-          .getTracks()
-          .forEach((track) => track.stop());
 
-        mediaStreamRef.current = null;
-      }
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      recordingTimerRef.current =
+        setInterval(() => {
+          setRecordingSeconds(
+            (current) =>
+              current + 1
+          );
+        }, 1000);
+    } catch (err: any) {
+      console.error(err);
 
       setError(
-        err?.name === "NotAllowedError"
-          ? "Microphone access was denied. Please allow microphone access and try again."
-          : err?.message ||
-              "Could not start voice recording."
+        "Microphone access was not granted. Please allow microphone access and try again."
       );
-
-      setIsRecording(false);
-    } finally {
-      setIsPreparingVoice(false);
     }
   }
 
+  // =======================================================
+  // STOP VOICE RECORDING
+  // =======================================================
+
   function stopVoiceRecording() {
-    const recorder = mediaRecorderRef.current;
+    const recorder =
+      mediaRecorderRef.current;
 
-    if (!recorder) {
-      return;
-    }
-
-    if (recorder.state !== "inactive") {
+    if (
+      recorder &&
+      recorder.state !==
+        "inactive"
+    ) {
       recorder.stop();
     }
   }
 
-  function handleDescriptionTypeChange(
-    type: DescriptionType
-  ) {
-    setError("");
-    setDescriptionType(type);
+  // =======================================================
+  // REMOVE VOICE
+  // =======================================================
 
-    if (type === "TEXT") {
-      if (isRecording) {
-        stopVoiceRecording();
+  function removeVoiceRecording() {
+    if (voicePreviewUrl) {
+      URL.revokeObjectURL(
+        voicePreviewUrl
+      );
+    }
+
+    setVoiceFile(null);
+    setVoicePreviewUrl("");
+    setRecordingSeconds(0);
+  }
+
+  // =======================================================
+  // FORMAT RECORDING TIME
+  // =======================================================
+
+  function formatRecordingTime(
+    seconds: number
+  ) {
+    const minutes =
+      Math.floor(seconds / 60);
+
+    const remaining =
+      seconds % 60;
+
+    return `${String(
+      minutes
+    ).padStart(2, "0")}:${String(
+      remaining
+    ).padStart(2, "0")}`;
+  }
+
+  // =======================================================
+  // DESCRIPTION VALIDATION
+  // =======================================================
+
+  function validateDescription() {
+    if (
+      descriptionType ===
+      "TEXT"
+    ) {
+      if (
+        !description.trim()
+      ) {
+        return "Please describe the incident.";
       }
 
-      clearVoiceRecording();
-    } else {
-      setDescription("");
+      return "";
     }
+
+    if (
+      descriptionType ===
+      "VOICE"
+    ) {
+      if (!voiceFile) {
+        return "Please record a voice description.";
+      }
+
+      return "";
+    }
+
+    return "";
   }
 
-  function handleVoiceInput(
-    e: ChangeEvent<HTMLInputElement>
+  // =======================================================
+  // SUBMIT REPORT
+  // =======================================================
+
+  async function handleSubmit(
+    e: FormEvent
   ) {
-    setError("");
-
-    const file = e.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!VOICE_ALLOWED_TYPES.includes(file.type)) {
-      setError(
-        "Unsupported audio format. Please choose a WebM, OGG, MP4, MP3, or WAV audio file."
-      );
-      e.target.value = "";
-      return;
-    }
-
-    if (file.size > MAX_VOICE_SIZE) {
-      setError(
-        "The voice message is larger than 25 MB."
-      );
-      e.target.value = "";
-      return;
-    }
-
-    if (voicePreviewUrl) {
-      URL.revokeObjectURL(voicePreviewUrl);
-    }
-
-    setVoiceFile(file);
-    setVoicePreviewUrl(
-      URL.createObjectURL(file)
-    );
-    setDescriptionType("VOICE");
-
-    e.target.value = "";
-  }
-
-  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     setError("");
 
     if (!incidentType) {
       setError(
-        "Please select an incident type."
+        "Please select the incident type."
       );
+
       return;
     }
 
-    if (descriptionType === "TEXT") {
-      if (!description.trim()) {
-        setError(
-          "Please provide a description of the incident."
-        );
-        return;
-      }
+    const descriptionError =
+      validateDescription();
+
+    if (descriptionError) {
+      setError(
+        descriptionError
+      );
+
+      return;
     }
 
-    if (descriptionType === "VOICE") {
-      if (!voiceFile) {
-        setError(
-          "Please record or upload a voice description."
-        );
-        return;
-      }
+    if (!town.trim()) {
+      setError(
+        "Please provide the town or city."
+      );
+
+      return;
     }
 
-    if (evidenceFiles.length === 0) {
+    if (!quarter.trim()) {
+      setError(
+        "Please provide the quarter or neighborhood."
+      );
+
+      return;
+    }
+
+    if (
+      evidenceFiles.length ===
+      0
+    ) {
       setError(
         "Please attach at least one photo or video as evidence."
       );
+
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      configureAmplify();
+      if (
+        reportMode ===
+        "AUTHENTICATED"
+      ) {
+        configureAmplify();
+      }
 
-      let currentReportId: string | undefined;
+      let currentReportId:
+        | string
+        | undefined;
 
       const uploadedEvidence: {
         key: string;
         contentType: string;
-        mediaType: "image" | "video";
+        mediaType:
+          | "image"
+          | "video";
       }[] = [];
 
-      /*
-       * Upload evidence first.
-       *
-       * The existing backend creates/returns the report ID
-       * through the first presigned upload request.
-       */
+      // ---------------------------------------------------
+      // Upload evidence
+      // ---------------------------------------------------
+
       for (
         let i = 0;
         i < evidenceFiles.length;
@@ -532,65 +786,102 @@ export default function ReportPage() {
         const evidenceFile =
           evidenceFiles[i];
 
-        const upload = await getUploadUrl(
-          evidenceFile.file,
-          currentReportId
-        );
+        const upload =
+          reportMode ===
+          "ANONYMOUS"
+            ? await getAnonymousUploadUrl(
+                evidenceFile.file,
+                currentReportId,
+                "evidence"
+              )
+            : await getUploadUrl(
+                evidenceFile.file,
+                currentReportId,
+                "evidence"
+              );
 
-        if (!currentReportId) {
+        if (
+          !currentReportId
+        ) {
           currentReportId =
             upload.reportId;
         }
 
         await uploadEvidence(
           upload.uploadUrl,
-          evidenceFile.file
+          evidenceFile.file,
+          upload.contentType
         );
 
-        uploadedEvidence.push({
-          key:
-            upload.evidenceKey ||
-            upload.photoKey,
-          contentType:
-            upload.contentType,
-          mediaType:
-            upload.mediaType,
-        });
+        uploadedEvidence.push(
+          {
+            key:
+              upload.evidenceKey ||
+              upload.photoKey ||
+              "",
+            contentType:
+              upload.contentType,
+            mediaType:
+              upload.mediaType ===
+              "video"
+                ? "video"
+                : "image",
+          }
+        );
       }
 
-      if (!currentReportId) {
+      if (
+        !currentReportId
+      ) {
         throw new Error(
           "Could not create a report ID."
         );
       }
 
-      /*
-       * Voice description.
-       *
-       * The backend has been updated to accept
-       * uploadType = "voice".
-       *
-       * lib/api.ts will be updated next so that
-       * getUploadUrl() accepts the third argument.
-       */
-      let uploadedVoiceKey:
+      // ---------------------------------------------------
+      // Upload voice description
+      // ---------------------------------------------------
+
+      let audioKey:
         | string
         | undefined;
 
-      let uploadedVoiceContentType:
+      let audioContentType:
         | string
         | undefined;
 
       if (
-        descriptionType === "VOICE" &&
-        voiceFile
+        descriptionType ===
+        "VOICE"
       ) {
-        const voiceUpload =
-          await getUploadUrl(
-            voiceFile,
-            currentReportId,
-            "voice"
+        if (!voiceFile) {
+          throw new Error(
+            "Voice description is missing."
           );
+        }
+
+        const voiceUpload =
+          reportMode ===
+          "ANONYMOUS"
+            ? await getAnonymousUploadUrl(
+                voiceFile,
+                currentReportId,
+                "voice"
+              )
+            : await getUploadUrl(
+                voiceFile,
+                currentReportId,
+                "voice"
+              );
+
+        if (
+          voiceUpload.reportId !==
+          currentReportId
+        ) {
+          throw new Error(
+            "Voice upload returned an unexpected report ID."
+          );
+        }
 
         await uploadEvidence(
           voiceUpload.uploadUrl,
@@ -598,53 +889,63 @@ export default function ReportPage() {
           voiceUpload.contentType
         );
 
-        uploadedVoiceKey =
-          voiceUpload.voiceKey ||
+        audioKey =
           voiceUpload.audioKey;
 
-        uploadedVoiceContentType =
-          voiceUpload.contentType ||
-          voiceFile.type;
-
-        if (!uploadedVoiceKey) {
-          throw new Error(
-            "The voice upload completed, but no audio key was returned."
-          );
-        }
+        audioContentType =
+          voiceUpload.contentType;
       }
 
-      await createReport({
-        reportId: currentReportId,
+      // ---------------------------------------------------
+      // Create final report
+      // ---------------------------------------------------
+
+      const payload = {
+        reportId:
+          currentReportId,
+
         incidentType,
 
         description:
-          descriptionType === "TEXT"
+          descriptionType ===
+          "TEXT"
             ? description.trim()
-            : "",
+            : undefined,
 
         descriptionType,
 
-        ...(descriptionType === "VOICE" &&
-        uploadedVoiceKey
-          ? {
-              audioKey:
-                uploadedVoiceKey,
-              audioContentType:
-                uploadedVoiceContentType ||
-                voiceFile?.type ||
-                "audio/webm",
-            }
-          : {}),
+        audioKey,
+        audioContentType,
 
-        evidence: uploadedEvidence,
+        evidence:
+          uploadedEvidence,
 
         town: town.trim(),
-        quarter: quarter.trim(),
-      });
+        quarter:
+          quarter.trim(),
+      };
 
-      setReportId(currentReportId);
+      if (
+        reportMode ===
+        "ANONYMOUS"
+      ) {
+        await createAnonymousReport(
+          payload
+        );
+      } else {
+        await createReport(
+          payload
+        );
+      }
+
+      setReportId(
+        currentReportId
+      );
+
       setSubmitted(true);
     } catch (err: any) {
+      console.error(err);
+
       setError(
         err?.message ||
           "Could not submit report."
@@ -653,6 +954,28 @@ export default function ReportPage() {
       setIsSubmitting(false);
     }
   }
+
+  // =======================================================
+  // LOADING STATE
+  // =======================================================
+
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-950">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-950" />
+
+          <p className="mt-4 text-xs font-semibold text-slate-500">
+            Preparing secure reporting...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // =======================================================
+  // SUCCESS SCREEN
+  // =======================================================
 
   if (submitted) {
     return (
@@ -694,18 +1017,54 @@ export default function ReportPage() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-400">
-              The incident information and
-              evidence were submitted successfully
-              to the SOS-Kamer response system.
+              The incident information
+              and evidence were submitted
+              successfully to the
+              SOS-Kamer response system.
             </p>
 
+            {/* ------------------------------------------------
+                REPORT REFERENCE
+            ------------------------------------------------ */}
+
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                Report reference
+              </p>
+
+              <p className="mt-2 break-all font-mono text-sm font-semibold text-slate-200">
+                {reportId}
+              </p>
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Keep this reference for your
+                records.
+              </p>
+            </div>
+
+            {reportMode ===
+              "ANONYMOUS" && (
+              <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-left">
+                <p className="text-xs font-semibold leading-5 text-amber-300">
+                  This report was submitted
+                  anonymously. It will not appear
+                  in a personal My Reports account.
+                  Keep the report reference above
+                  for your records.
+                </p>
+              </div>
+            )}
+
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link
-                href="/reports"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-bold shadow-lg shadow-red-950/30 transition hover:bg-red-500"
-              >
-                View my reports
-              </Link>
+              {reportMode ===
+                "AUTHENTICATED" && (
+                <Link
+                  href="/reports"
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-bold shadow-lg shadow-red-950/30 transition hover:bg-red-500"
+                >
+                  View my reports
+                </Link>
+              )}
 
               <Link
                 href="/"
@@ -720,9 +1079,15 @@ export default function ReportPage() {
     );
   }
 
+  // =======================================================
+  // MAIN REPORT FORM
+  // =======================================================
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
-      {/* HEADER */}
+      {/* ===================================================
+          HEADER
+      =================================================== */}
 
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
@@ -749,22 +1114,40 @@ export default function ReportPage() {
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/reports"
-              className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-            >
-              My reports
-            </Link>
+            {isAuthenticated &&
+              reportMode ===
+                "AUTHENTICATED" && (
+                <>
+                  <Link
+                    href="/reports"
+                    className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+                  >
+                    My reports
+                  </Link>
 
-            <SignOutButton />
+                  <SignOutButton />
+                </>
+              )}
+
+            {isAuthenticated &&
+              reportMode ===
+                "ANONYMOUS" && (
+                <span className="rounded-lg bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-700">
+                  Anonymous mode
+                </span>
+              )}
           </div>
         </div>
       </header>
 
-      {/* PAGE */}
+      {/* ===================================================
+          PAGE
+      =================================================== */}
 
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
-        {/* INTRO */}
+        {/* =================================================
+            INTRO
+        ================================================= */}
 
         <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
@@ -797,7 +1180,175 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* ERROR */}
+        {/* =================================================
+            REPORT MODE
+        ================================================= */}
+
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div className="flex items-start gap-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white">
+                00
+              </span>
+
+              <div>
+                <h2 className="text-sm font-bold text-slate-950">
+                  How would you like to report?
+                </h2>
+
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  You can submit using your account or
+                  report anonymously without linking the
+                  incident to your account.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
+            {/* AUTHENTICATED */}
+
+            <label
+              className={`cursor-pointer rounded-xl border p-4 transition ${
+                reportMode ===
+                "AUTHENTICATED"
+                  ? "border-slate-950 bg-slate-50 ring-2 ring-slate-100"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+              } ${
+                !isAuthenticated
+                  ? "cursor-not-allowed opacity-50"
+                  : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="reportMode"
+                value="AUTHENTICATED"
+                checked={
+                  reportMode ===
+                  "AUTHENTICATED"
+                }
+                disabled={
+                  !isAuthenticated
+                }
+                onChange={() =>
+                  setReportMode(
+                    "AUTHENTICATED"
+                  )
+                }
+                className="sr-only"
+              />
+
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">
+                    Submit with my account
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Your report will be linked to
+                    your account and available in
+                    My Reports.
+                  </p>
+
+                  {!isAuthenticated && (
+                    <p className="mt-2 text-[10px] font-bold text-amber-600">
+                      Sign in to use this option.
+                    </p>
+                  )}
+                </div>
+
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    reportMode ===
+                    "AUTHENTICATED"
+                      ? "border-slate-950 bg-slate-950"
+                      : "border-slate-300"
+                  }`}
+                >
+                  {reportMode ===
+                    "AUTHENTICATED" && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  )}
+                </span>
+              </div>
+            </label>
+
+            {/* ANONYMOUS */}
+
+            <label
+              className={`cursor-pointer rounded-xl border p-4 transition ${
+                reportMode ===
+                "ANONYMOUS"
+                  ? "border-red-500 bg-red-50 ring-2 ring-red-100"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <input
+                type="radio"
+                name="reportMode"
+                value="ANONYMOUS"
+                checked={
+                  reportMode ===
+                  "ANONYMOUS"
+                }
+                onChange={() =>
+                  setReportMode(
+                    "ANONYMOUS"
+                  )
+                }
+                className="sr-only"
+              />
+
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-red-700">
+                    Report anonymously
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    No account is required and the
+                    report will not be linked to your
+                    citizen account.
+                  </p>
+                </div>
+
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    reportMode ===
+                    "ANONYMOUS"
+                      ? "border-red-500 bg-red-500"
+                      : "border-slate-300"
+                  }`}
+                >
+                  {reportMode ===
+                    "ANONYMOUS" && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  )}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {reportMode ===
+            "ANONYMOUS" && (
+            <div className="border-t border-amber-100 bg-amber-50 px-5 py-4 sm:px-6">
+              <p className="text-xs leading-5 text-amber-800">
+                <span className="font-bold">
+                  Anonymous reporting:
+                </span>{" "}
+                your report will still be visible to
+                authorized SOS-Kamer administrators,
+                but it will not be associated with
+                your account.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -817,12 +1368,22 @@ export default function ReportPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        {/* =================================================
+            FORM
+        ================================================= */}
+
+        <form
+          onSubmit={handleSubmit}
+        >
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-            {/* MAIN FORM */}
+            {/* =================================================
+                MAIN FORM
+            ================================================= */}
 
             <div className="space-y-6">
-              {/* INCIDENT */}
+              {/* =================================================
+                  INCIDENT
+              ================================================= */}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
@@ -845,74 +1406,93 @@ export default function ReportPage() {
                 </div>
 
                 <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
-                  {incidentTypes.map((type) => {
-                    const selected =
-                      incidentType === type.value;
+                  {incidentTypes.map(
+                    (type) => {
+                      const selected =
+                        incidentType ===
+                        type.value;
 
-                    return (
-                      <label
-                        key={type.value}
-                        className={`relative cursor-pointer rounded-xl border p-4 transition ${
-                          selected
-                            ? type.critical
-                              ? "border-red-500 bg-red-50 ring-2 ring-red-100"
-                              : "border-slate-950 bg-slate-50 ring-2 ring-slate-100"
-                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="incidentType"
-                          value={type.value}
-                          checked={selected}
-                          onChange={(e) =>
-                            setIncidentType(
-                              e.target.value
-                            )
+                      return (
+                        <label
+                          key={
+                            type.value
                           }
-                          required
-                          className="sr-only"
-                        />
+                          className={`relative cursor-pointer rounded-xl border p-4 transition ${
+                            selected
+                              ? type.critical
+                                ? "border-red-500 bg-red-50 ring-2 ring-red-100"
+                                : "border-slate-950 bg-slate-50 ring-2 ring-slate-100"
+                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="incidentType"
+                            value={
+                              type.value
+                            }
+                            checked={
+                              selected
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              setIncidentType(
+                                e
+                                  .target
+                                  .value
+                              )
+                            }
+                            required
+                            className="sr-only"
+                          />
 
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p
-                              className={`text-sm font-bold ${
-                                type.critical &&
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p
+                                className={`text-sm font-bold ${
+                                  type.critical &&
+                                  selected
+                                    ? "text-red-700"
+                                    : "text-slate-800"
+                                }`}
+                              >
+                                {
+                                  type.label
+                                }
+                              </p>
+
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                {
+                                  type.description
+                                }
+                              </p>
+                            </div>
+
+                            <span
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                                 selected
-                                  ? "text-red-700"
-                                  : "text-slate-800"
+                                  ? type.critical
+                                    ? "border-red-500 bg-red-500"
+                                    : "border-slate-950 bg-slate-950"
+                                  : "border-slate-300"
                               }`}
                             >
-                              {type.label}
-                            </p>
-
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {type.description}
-                            </p>
+                              {selected && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                              )}
+                            </span>
                           </div>
-
-                          <span
-                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                              selected
-                                ? type.critical
-                                  ? "border-red-500 bg-red-500"
-                                  : "border-slate-950 bg-slate-950"
-                                : "border-slate-300"
-                            }`}
-                          >
-                            {selected && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                            )}
-                          </span>
-                        </div>
-                      </label>
-                    );
-                  })}
+                        </label>
+                      );
+                    }
+                  )}
                 </div>
               </section>
 
-              {/* DESCRIPTION */}
+              {/* =================================================
+                  DESCRIPTION
+              ================================================= */}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
@@ -927,110 +1507,84 @@ export default function ReportPage() {
                       </h2>
 
                       <p className="mt-1 text-xs text-slate-500">
-                        Describe what happened using
-                        text or a voice message.
+                        You can describe what happened
+                        using text or your voice.
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-5 sm:p-6">
-                  {/* DESCRIPTION TYPE SELECTOR */}
+                  {/* -------------------------------------------
+                      DESCRIPTION TYPE
+                  ------------------------------------------- */}
 
                   <div className="mb-5 grid gap-3 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() =>
-                        handleDescriptionTypeChange(
+                        setDescriptionType(
                           "TEXT"
                         )
                       }
                       className={`rounded-xl border p-4 text-left transition ${
-                        descriptionType === "TEXT"
+                        descriptionType ===
+                        "TEXT"
                           ? "border-slate-950 bg-slate-50 ring-2 ring-slate-100"
-                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">
-                            Text message
-                          </p>
+                      <p className="text-sm font-bold text-slate-800">
+                        Text description
+                      </p>
 
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
-                            Type a description of what
-                            happened.
-                          </p>
-                        </div>
-
-                        <span
-                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                            descriptionType ===
-                            "TEXT"
-                              ? "border-slate-950 bg-slate-950"
-                              : "border-slate-300"
-                          }`}
-                        >
-                          {descriptionType ===
-                            "TEXT" && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                          )}
-                        </span>
-                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Type the details of what
+                        happened.
+                      </p>
                     </button>
 
                     <button
                       type="button"
                       onClick={() =>
-                        handleDescriptionTypeChange(
+                        setDescriptionType(
                           "VOICE"
                         )
                       }
                       className={`rounded-xl border p-4 text-left transition ${
-                        descriptionType === "VOICE"
+                        descriptionType ===
+                        "VOICE"
                           ? "border-red-500 bg-red-50 ring-2 ring-red-100"
-                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">
-                            Voice message
-                          </p>
+                      <p className="text-sm font-bold text-slate-800">
+                        Voice description
+                      </p>
 
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
-                            Record or select an audio
-                            description.
-                          </p>
-                        </div>
-
-                        <span
-                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                            descriptionType ===
-                            "VOICE"
-                              ? "border-red-500 bg-red-500"
-                              : "border-slate-300"
-                          }`}
-                        >
-                          {descriptionType ===
-                            "VOICE" && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                          )}
-                        </span>
-                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Record yourself describing
+                        what happened.
+                      </p>
                     </button>
                   </div>
 
-                  {/* TEXT DESCRIPTION */}
+                  {/* -------------------------------------------
+                      TEXT DESCRIPTION
+                  ------------------------------------------- */}
 
-                  {descriptionType === "TEXT" && (
+                  {descriptionType ===
+                    "TEXT" && (
                     <>
                       <textarea
                         id="description"
-                        value={description}
+                        value={
+                          description
+                        }
                         onChange={(e) =>
                           setDescription(
-                            e.target.value
+                            e.target
+                              .value
                           )
                         }
                         required
@@ -1040,171 +1594,160 @@ export default function ReportPage() {
                       />
 
                       <p className="mt-2 text-[11px] text-slate-400">
-                        Be factual and specific. Avoid
-                        assumptions where possible.
+                        Be factual and specific.
+                        Avoid assumptions where
+                        possible.
                       </p>
                     </>
                   )}
 
-                  {/* VOICE DESCRIPTION */}
+                  {/* -------------------------------------------
+                      VOICE DESCRIPTION
+                  ------------------------------------------- */}
 
                   {descriptionType ===
                     "VOICE" && (
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-bold text-slate-700">
-                          Record your description
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                      <div className="text-center">
+                        <div
+                          className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
+                            isRecording
+                              ? "bg-red-100"
+                              : "bg-white"
+                          }`}
+                        >
+                          <span
+                            className={`text-xl ${
+                              isRecording
+                                ? "text-red-600"
+                                : "text-slate-700"
+                            }`}
+                          >
+                            {isRecording
+                              ? "●"
+                              : "🎙"}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-sm font-bold text-slate-800">
+                          {isRecording
+                            ? "Recording your description..."
+                            : voiceFile
+                              ? "Voice description recorded"
+                              : "Record your description"}
                         </p>
 
-                        <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                          Speak clearly and describe
-                          what happened, when it
-                          happened, and anything
-                          important for the response
-                          team.
-                        </p>
+                        {isRecording && (
+                          <p className="mt-2 font-mono text-lg font-bold text-red-600">
+                            {formatRecordingTime(
+                              recordingSeconds
+                            )}
+                          </p>
+                        )}
 
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                          {!isRecording ? (
+                        {!isRecording &&
+                          !voiceFile && (
+                            <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
+                              Explain what happened
+                              clearly. Your voice recording
+                              will be securely uploaded with
+                              the report.
+                            </p>
+                          )}
+                      </div>
+
+                      {/* RECORD */}
+
+                      <div className="mt-5 flex justify-center">
+                        {!isRecording &&
+                          !voiceFile && (
                             <button
                               type="button"
                               onClick={
                                 startVoiceRecording
                               }
-                              disabled={
-                                isPreparingVoice ||
-                                isSubmitting
-                              }
-                              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-6 text-sm font-bold text-white shadow-lg shadow-red-900/20 transition hover:bg-red-500"
                             >
-                              {isPreparingVoice ? (
-                                <>
-                                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-white" />
-                                  Starting microphone...
-                                </>
-                              ) : (
-                                <>
-                                  <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[8px]">
-                                    ●
-                                  </span>
-                                  {voiceFile
-                                    ? "Record again"
-                                    : "Start recording"}
-                                </>
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={
-                                stopVoiceRecording
-                              }
-                              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800"
-                            >
-                              <span className="h-3 w-3 rounded-sm bg-red-500" />
-                              Stop recording
+                              <span>
+                                ●
+                              </span>
+                              Start recording
                             </button>
                           )}
 
-                          <label className="inline-flex h-11 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
-                            Choose audio file
-
-                            <input
-                              type="file"
-                              accept="audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/wav"
-                              onChange={
-                                handleVoiceInput
-                              }
-                              className="hidden"
-                              disabled={
-                                isRecording ||
-                                isSubmitting
-                              }
-                            />
-                          </label>
-                        </div>
-
                         {isRecording && (
-                          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                            <span className="relative flex h-3 w-3">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                              <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+                          <button
+                            type="button"
+                            onClick={
+                              stopVoiceRecording
+                            }
+                            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 text-sm font-bold text-white transition hover:bg-slate-800"
+                          >
+                            <span>
+                              ■
                             </span>
-
-                            <div>
-                              <p className="text-xs font-bold text-red-800">
-                                Recording in progress
-                              </p>
-
-                              <p className="mt-0.5 text-[10px] text-red-600">
-                                Speak clearly, then press
-                                Stop recording.
-                              </p>
-                            </div>
-                          </div>
+                            Stop recording
+                          </button>
                         )}
+
+                        {!isRecording &&
+                          voiceFile && (
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                              <button
+                                type="button"
+                                onClick={
+                                  startVoiceRecording
+                                }
+                                className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                              >
+                                Record again
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={
+                                  removeVoiceRecording
+                                }
+                                className="inline-flex h-11 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-5 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                              >
+                                Remove recording
+                              </button>
+                            </div>
+                          )}
                       </div>
 
-                      {voiceFile && (
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-emerald-800">
-                                Voice description ready
-                              </p>
+                      {/* AUDIO PREVIEW */}
 
-                              <p className="mt-1 truncate text-[10px] text-emerald-700">
-                                {voiceFile.name}
-                              </p>
+                      {voicePreviewUrl &&
+                        !isRecording && (
+                          <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Preview
+                            </p>
 
-                              <p className="mt-1 text-[10px] text-emerald-600">
-                                {(
-                                  voiceFile.size /
-                                  (1024 * 1024)
-                                ).toFixed(2)}{" "}
-                                MB
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={
-                                clearVoiceRecording
-                              }
-                              disabled={
-                                isRecording ||
-                                isSubmitting
-                              }
-                              className="shrink-0 rounded-lg px-2.5 py-2 text-[10px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                            >
-                              Remove
-                            </button>
-                          </div>
-
-                          {voicePreviewUrl && (
                             <audio
-                              className="mt-4 w-full"
                               controls
-                              preload="metadata"
                               src={
                                 voicePreviewUrl
                               }
+                              className="w-full"
                             />
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        )}
 
-                      <p className="text-[11px] text-slate-400">
-                        Supported audio formats: WebM,
-                        OGG, MP4, MP3, and WAV. Maximum
-                        size: 25 MB.
+                      <p className="mt-4 text-center text-[10px] leading-4 text-slate-400">
+                        Audio formats supported by the
+                        reporting system include WebM,
+                        OGG and MP4.
                       </p>
                     </div>
                   )}
                 </div>
               </section>
 
-              {/* LOCATION */}
+              {/* =================================================
+                  LOCATION
+              ================================================= */}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
@@ -1240,7 +1783,9 @@ export default function ReportPage() {
                       required
                       value={town}
                       onChange={(e) =>
-                        setTown(e.target.value)
+                        setTown(
+                          e.target.value
+                        )
                       }
                       placeholder="e.g. Douala"
                       className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-100"
@@ -1260,7 +1805,9 @@ export default function ReportPage() {
                       required
                       value={quarter}
                       onChange={(e) =>
-                        setQuarter(e.target.value)
+                        setQuarter(
+                          e.target.value
+                        )
                       }
                       placeholder="e.g. Bonanjo"
                       className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-100"
@@ -1269,7 +1816,9 @@ export default function ReportPage() {
                 </div>
               </section>
 
-              {/* EVIDENCE */}
+              {/* =================================================
+                  EVIDENCE
+              ================================================= */}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
@@ -1398,12 +1947,18 @@ export default function ReportPage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
-                    <span>Up to 10 files</span>
+                    <span>
+                      Up to 10 files
+                    </span>
+
                     <span>•</span>
+
                     <span>
                       100 MB maximum per file
                     </span>
+
                     <span>•</span>
+
                     <span>
                       Images & video supported
                     </span>
@@ -1411,7 +1966,8 @@ export default function ReportPage() {
 
                   {/* PREVIEWS */}
 
-                  {evidenceFiles.length > 0 && (
+                  {evidenceFiles.length >
+                    0 && (
                     <div className="mt-6">
                       <div className="mb-3 flex items-center justify-between">
                         <p className="text-xs font-bold text-slate-700">
@@ -1425,9 +1981,14 @@ export default function ReportPage() {
 
                       <div className="grid gap-3 sm:grid-cols-2">
                         {evidenceFiles.map(
-                          (item, index) => (
+                          (
+                            item,
+                            index
+                          ) => (
                             <div
-                              key={item.id}
+                              key={
+                                item.id
+                              }
                               className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
                             >
                               <div className="relative aspect-video bg-slate-900">
@@ -1449,21 +2010,27 @@ export default function ReportPage() {
                                       item.previewUrl
                                     }
                                     alt={`Evidence ${
-                                      index + 1
+                                      index +
+                                      1
                                     }`}
                                     className="h-full w-full object-cover"
                                   />
                                 )}
 
                                 <span className="absolute left-2 top-2 rounded-md bg-black/60 px-2 py-1 text-[9px] font-bold text-white backdrop-blur">
-                                  {index + 1}
+                                  {index +
+                                    1}
                                 </span>
                               </div>
 
                               <div className="flex items-center justify-between gap-3 p-3">
                                 <div className="min-w-0">
                                   <p className="truncate text-xs font-semibold text-slate-700">
-                                    {item.file.name}
+                                    {
+                                      item
+                                        .file
+                                        .name
+                                    }
                                   </p>
 
                                   <p className="mt-1 text-[10px] text-slate-400">
@@ -1476,8 +2043,11 @@ export default function ReportPage() {
                                     {(
                                       item.file
                                         .size /
-                                      (1024 * 1024)
-                                    ).toFixed(1)}{" "}
+                                      (1024 *
+                                        1024)
+                                    ).toFixed(
+                                      1
+                                    )}{" "}
                                     MB
                                   </p>
                                 </div>
@@ -1504,7 +2074,9 @@ export default function ReportPage() {
               </section>
             </div>
 
-            {/* SIDE REVIEW */}
+            {/* =================================================
+                SIDE REVIEW
+            ================================================= */}
 
             <aside className="lg:sticky lg:top-24 lg:h-fit">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1519,7 +2091,31 @@ export default function ReportPage() {
                 </div>
 
                 <div className="space-y-4 p-5">
-                  {/* INCIDENT TYPE */}
+                  {/* MODE */}
+
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[9px] font-black text-white">
+                      {reportMode ===
+                      "ANONYMOUS"
+                        ? "A"
+                        : "U"}
+                    </span>
+
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">
+                        Reporting mode
+                      </p>
+
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {reportMode ===
+                        "ANONYMOUS"
+                          ? "Anonymous"
+                          : "Linked to your account"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* INCIDENT */}
 
                   <div className="flex items-start gap-3">
                     <span
@@ -1542,7 +2138,9 @@ export default function ReportPage() {
                       <p className="mt-0.5 text-[11px] text-slate-400">
                         {incidentType
                           ? incidentTypes.find(
-                              (item) =>
+                              (
+                                item
+                              ) =>
                                 item.value ===
                                 incidentType
                             )?.label
@@ -1557,13 +2155,13 @@ export default function ReportPage() {
                     <span
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
                         descriptionType ===
-                        "VOICE"
+                          "VOICE"
                           ? voiceFile
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-slate-100 text-slate-400"
                           : description.trim()
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-400"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-400"
                       }`}
                     >
                       {descriptionType ===
@@ -1572,11 +2170,11 @@ export default function ReportPage() {
                           ? "✓"
                           : "—"
                         : description.trim()
-                        ? "✓"
-                        : "—"}
+                          ? "✓"
+                          : "—"}
                     </span>
 
-                    <div className="min-w-0">
+                    <div>
                       <p className="text-xs font-bold text-slate-700">
                         Description
                       </p>
@@ -1585,11 +2183,11 @@ export default function ReportPage() {
                         {descriptionType ===
                         "VOICE"
                           ? voiceFile
-                            ? "Voice message ready"
-                            : "Voice message not provided"
+                            ? "Voice recording ready"
+                            : "Voice recording required"
                           : description.trim()
-                          ? "Text description provided"
-                          : "Text description not provided"}
+                            ? "Information provided"
+                            : "Not provided"}
                       </p>
                     </div>
                   </div>
@@ -1662,33 +2260,50 @@ export default function ReportPage() {
                   </div>
                 </div>
 
+                {/* SUBMIT */}
+
                 <div className="border-t border-slate-100 p-5">
                   <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
                     <p className="text-[11px] font-semibold leading-5 text-amber-800">
                       Only submit genuine incidents.
                       False reports can delay
-                      assistance and affect people who
-                      need help.
+                      assistance and affect people
+                      who need help.
                     </p>
                   </div>
+
+                  {reportMode ===
+                    "ANONYMOUS" && (
+                    <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] leading-5 text-slate-600">
+                        This report will be submitted
+                        without your account identity.
+                        Keep your report reference after
+                        submission.
+                      </p>
+                    </div>
+                  )}
 
                   <button
                     type="submit"
                     disabled={
                       isSubmitting ||
-                      isRecording ||
-                      isPreparingVoice
+                      isRecording
                     }
                     className="group flex h-13 w-full items-center justify-center gap-3 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-lg shadow-red-900/20 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-white" />
+
                         Submitting report...
                       </>
                     ) : (
                       <>
-                        Submit incident
+                        {reportMode ===
+                        "ANONYMOUS"
+                          ? "Submit anonymously"
+                          : "Submit incident"}
 
                         <span className="transition-transform group-hover:translate-x-0.5">
                           →
@@ -1698,16 +2313,19 @@ export default function ReportPage() {
                   </button>
 
                   <p className="mt-3 text-center text-[10px] leading-4 text-slate-400">
-                    Your evidence and voice
-                    description, if provided, will be
-                    securely uploaded before the report
-                    is submitted.
+                    Your evidence will be securely
+                    uploaded before the report is
+                    submitted.
                   </p>
                 </div>
               </div>
             </aside>
           </div>
         </form>
+
+        {/* =================================================
+            FOOTER
+        ================================================= */}
 
         <footer className="py-8 text-center">
           <p className="text-[10px] text-slate-400">

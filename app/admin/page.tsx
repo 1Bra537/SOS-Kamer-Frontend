@@ -14,8 +14,9 @@ import {
   getEvidenceDownloadUrl,
   getReportPdfUrl,
   getAdminAnalytics,
-  getReportDescriptionAudioUrl,
+  getAdminDescriptionAudioUrl,
   AdminAnalytics,
+  AdminReport,
 } from "@/lib/api";
 
 type MediaType = "image" | "video";
@@ -27,35 +28,7 @@ type EvidenceItem = {
   contentType?: string;
 };
 
-type Report = {
-  reportId: string;
-  citizenId: string;
-  incidentType: string;
-
-  description: string;
-
-  descriptionType?: "TEXT" | "VOICE";
-  audioKey?: string;
-  audioContentType?: string;
-  audioUrl?: string;
-
-  photoKey: string;
-
-  evidence?: {
-    key: string;
-    contentType?: string;
-    mediaType?: MediaType;
-  }[];
-
-  mediaType?: MediaType;
-  contentType?: string;
-
-  town: string;
-  quarter: string;
-  status: string;
-  createdAt: string;
-  resolvedAt?: string;
-};
+type Report = AdminReport;
 
 type SortOption =
   | "newest"
@@ -503,7 +476,7 @@ function AdminDashboard() {
       setVoiceErrorReportId("");
 
       const result =
-        await getReportDescriptionAudioUrl(
+        await getAdminDescriptionAudioUrl(
           reportId
         );
 
@@ -1962,7 +1935,7 @@ function AdminDashboard() {
                             {report.descriptionType ===
                               "VOICE" && (
                               <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">
-                                🎙️ Voice description
+                                 Voice description
                               </span>
                             )}
 

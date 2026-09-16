@@ -1,346 +1,184 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 if (!API_URL) {
-  console.warn("NEXT_PUBLIC_API_URL is not configured.");
-}
-
-async function authHeaders() {
-  const session = await fetchAuthSession();
-  const token = session.tokens?.idToken?.toString();
-
-  if (!token) {
-    throw new Error(
-      "Your session has expired. Please sign in again."
-    );
-  }
-
-  return {
-    Authorization: token,
-    "Content-Type": "application/json",
-  };
-}
-
-async function parseResponse(response: Response) {
-  const text = await response.text();
-
-  let body: any = {};
-
-  try {
-    body = text ? JSON.parse(text) : {};
-  } catch {
-    body = { error: text };
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      body?.error ||
-        body?.message ||
-        `Request failed (${response.status})`
-    );
-  }
-
-  return body;
-}
-
-/* =========================================================
-   UPLOADS
-   ========================================================= */
-
-export type UploadType =
-  | "evidence"
-  | "voice";
-
-export async function getUploadUrl(
-  file: File,
-  reportId?: string,
-  uploadType: UploadType = "evidence"
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
-
-  const response = await fetch(
-    `${API_URL}/uploads/presign`,
-    {
-      method: "POST",
-      headers: await authHeaders(),
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType: file.type,
-        uploadType,
-        ...(reportId ? { reportId } : {}),
-      }),
-    }
+  console.warn(
+    "NEXT_PUBLIC_API_URL is not configured."
   );
-
-  return parseResponse(response);
 }
 
-export async function uploadEvidence(
-  uploadUrl: string,
-  file: File,
-  contentType?: string
-) {
-  const uploadContentType =
-    contentType ||
-    file.type ||
-    "application/octet-stream";
+// =========================================================
+// TYPES
+// =========================================================
 
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": uploadContentType,
-    },
-    body: file,
-  });
+export type UploadType = "evidence" | "voice";
 
-  if (!response.ok) {
-    throw new Error(
-      "Evidence upload failed. Please try again."
-    );
-  }
-}
+export type ReportDescriptionType = "TEXT" | "VOICE";
 
-/* =========================================================
-   REPORTS
-   ========================================================= */
+export type MediaType = "image" | "video";
 
-export type ReportDescriptionType =
-  | "TEXT"
-  | "VOICE";
+export type EvidencePayload = {
+  key: string;
+  contentType: string;
+  mediaType: MediaType;
+};
 
 export type CreateReportPayload = {
   reportId: string;
   incidentType: string;
 
-  description: string;
+  /**
+   * Text description is optional because VOICE reports
+   * intentionally do not contain a text description.
+   */
+  description?: string;
 
   descriptionType: ReportDescriptionType;
 
   audioKey?: string;
-
   audioContentType?: string;
 
-  evidence: {
-    key: string;
-    contentType: string;
-    mediaType: "image" | "video";
-  }[];
+  evidence: EvidencePayload[];
 
   town: string;
   quarter: string;
 };
 
-export async function createReport(
-  payload: CreateReportPayload
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+export type UploadResponse = {
+  reportId: string;
 
-  const response = await fetch(
-    `${API_URL}/reports`,
-    {
-      method: "POST",
-      headers: await authHeaders(),
-      body: JSON.stringify(payload),
-    }
-  );
+  evidenceId?: string;
 
-  return parseResponse(response);
-}
+  photoKey?: string;
+  evidenceKey?: string;
 
-/* =========================================================
-   ADMIN REPORTS
-   ========================================================= */
+  audioKey?: string;
 
-export async function getAdminReports() {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  uploadUrl: string;
 
-  const response = await fetch(
-    `${API_URL}/admin/reports`,
-    {
-      method: "GET",
-      headers: await authHeaders(),
-    }
-  );
+  contentType: string;
 
-  return parseResponse(response);
-}
+  mediaType: "image" | "video" | "audio";
 
-export async function getAdminNotificationCount(): Promise<{
-  count: number;
-}> {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  uploadType: UploadType;
 
-  const response = await fetch(
-    `${API_URL}/admin/notifications/count`,
-    {
-      method: "GET",
-      headers: await authHeaders(),
-      cache: "no-store",
-    }
-  );
+  ExpiresIn?: number;
+};
 
-  return parseResponse(response);
-}
+export type CitizenReport = {
+  reportId: string;
+  incidentType: string;
 
-export async function getAdminNotifications() {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  description?: string;
+  descriptionType?: ReportDescriptionType;
 
-  const response = await fetch(
-    `${API_URL}/admin/notifications`,
-    {
-      method: "GET",
-      headers: await authHeaders(),
-    }
-  );
+  audioKey?: string;
+  audioContentType?: string;
+  audioUrl?: string;
 
-  return parseResponse(response);
-}
+  town: string;
+  quarter: string;
 
-export async function acknowledgeNotification(
-  notificationId: string
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  status: string;
 
-  const response = await fetch(
-    `${API_URL}/admin/notifications/${notificationId}`,
-    {
-      method: "PATCH",
-      headers: await authHeaders(),
-    }
-  );
+  createdAt: string;
+  updatedAt?: string;
+  resolvedAt?: string;
 
-  return parseResponse(response);
-}
+  evidenceCount: number;
 
-export async function resolveReport(
-  reportId: string
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  statusHistory: {
+    status: string;
+    timestamp: string;
+    actor?: string;
+  }[];
+};
 
-  const response = await fetch(
-    `${API_URL}/admin/reports/${reportId}`,
-    {
-      method: "PATCH",
-      headers: await authHeaders(),
-    }
-  );
+export type AdminReport = {
+  reportId: string;
 
-  return parseResponse(response);
-}
+  /**
+   * Anonymous reports intentionally do not contain
+   * a citizenId.
+   */
+  citizenId?: string;
 
-/* =========================================================
-   EVIDENCE
-   ========================================================= */
+  /**
+   * True when the report was submitted anonymously.
+   */
+  isAnonymous?: boolean;
 
-export async function getEvidenceUrl(
-  reportId: string
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  incidentType: string;
 
-  const response = await fetch(
-    `${API_URL}/admin/reports/${reportId}/evidence`,
-    {
-      method: "GET",
-      headers: await authHeaders(),
-    }
-  );
+  description?: string;
+  descriptionType?: ReportDescriptionType;
 
-  return parseResponse(response);
-}
+  audioKey?: string;
+  audioContentType?: string;
 
-export async function getEvidenceDownloadUrl(
-  reportId: string,
-  index: number
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  photoKey?: string;
 
-  const response = await fetch(
-    `${API_URL}/admin/reports/${encodeURIComponent(
-      reportId
-    )}/evidence/${index}`,
-    {
-      method: "GET",
-      headers: await authHeaders(),
-      cache: "no-store",
-    }
-  );
+  evidence?: EvidencePayload[];
 
-  return parseResponse(response);
-}
+  town: string;
+  quarter: string;
 
-/* =========================================================
-   REPORT PDF
-   ========================================================= */
+  status: string;
 
-export async function getReportPdfUrl(
-  reportId: string
-) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  createdAt: string;
+  updatedAt?: string;
 
-  const response = await fetch(
-    `${API_URL}/admin/reports/${encodeURIComponent(
-      reportId
-    )}/pdf`,
-    {
-      method: "GET",
-      headers: await authHeaders(),
-      cache: "no-store",
-    }
-  );
+  acknowledgedAt?: string;
+  resolvedAt?: string;
 
-  return parseResponse(response);
-}
+  statusHistory?: {
+    status: string;
+    timestamp: string;
+    actorType?: string;
+    actorId?: string;
+  }[];
+};
 
-/* =========================================================
-   ADMIN ANALYTICS
-   ========================================================= */
+export type AdminNotification = {
+  notificationId: string;
+  reportId: string;
+
+  incidentType: string;
+
+  /**
+   * Optional because voice reports may not have
+   * a text description.
+   */
+  description?: string;
+
+  descriptionType?: ReportDescriptionType;
+
+  town?: string;
+  quarter?: string;
+
+  /**
+   * True when the notification belongs to an
+   * anonymous report.
+   */
+  isAnonymous?: boolean;
+
+  status: string;
+
+  createdAt: string;
+  acknowledgedAt?: string;
+};
+
+// =========================================================
+// ADMIN ANALYTICS
+// =========================================================
 
 export type AdminAnalytics = {
   summary: {
     totalReports: number;
     newReports: number;
     acknowledgedReports: number;
+    inProgressReports: number;
     resolvedReports: number;
   };
 
@@ -354,153 +192,244 @@ export type AdminAnalytics = {
     count: number;
   }[];
 
-  reportsByTown: {
-    town: string;
-    count: number;
-  }[];
-
-  availableTowns: string[];
-
   reportsOverTime: {
     date: string;
     count: number;
   }[];
 
-  filter?: {
-    type: string;
+  reportsByTown: {
     town: string;
-    status: string;
-    period: string;
-  };
+    count: number;
+  }[];
 
   averageAcknowledgementTimeMinutes: number;
-
   averageResolutionTimeMinutes: number;
+
+  filters?: {
+    type?: string;
+    town?: string;
+    status?: string;
+    period?: string;
+  };
 };
 
-export type AdminAnalyticsFilters = {
-  type?: string;
-  town?: string;
-  status?: string;
-  period?: string;
-};
+// =========================================================
+// COMMON HELPERS
+// =========================================================
 
-export async function getAdminAnalytics(
-  filters: AdminAnalyticsFilters = {}
-): Promise<AdminAnalytics> {
+async function authHeaders(): Promise<Record<string, string>> {
+  const session = await fetchAuthSession();
+
+  const token =
+    session.tokens?.idToken?.toString();
+
+  if (!token) {
+    throw new Error(
+      "You must be signed in to perform this action."
+    );
+  }
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: token,
+  };
+}
+
+async function parseResponse<T = any>(
+  response: Response
+): Promise<T> {
+  const text = await response.text();
+
+  let data: any = {};
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {
+      message: text,
+    };
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ||
+        data?.message ||
+        `Request failed with status ${response.status}`
+    );
+  }
+
+  return data as T;
+}
+
+function requireApiUrl() {
   if (!API_URL) {
     throw new Error(
       "API URL is not configured."
     );
   }
+}
 
-  const params = new URLSearchParams();
+// =========================================================
+// UPLOADS
+// =========================================================
 
-  if (
-    filters.type &&
-    filters.type !== "ALL"
-  ) {
-    params.set(
-      "type",
-      filters.type
-    );
-  }
+export async function getUploadUrl(
+  file: File,
+  reportId?: string,
+  uploadType: UploadType = "evidence"
+): Promise<UploadResponse> {
+  requireApiUrl();
 
-  if (
-    filters.town &&
-    filters.town !== "ALL"
-  ) {
-    params.set(
-      "town",
-      filters.town
-    );
-  }
-
-  if (
-    filters.status &&
-    filters.status !== "ALL"
-  ) {
-    params.set(
-      "status",
-      filters.status
-    );
-  }
-
-  if (
-    filters.period &&
-    filters.period !== "all"
-  ) {
-    params.set(
-      "period",
-      filters.period
-    );
-  }
-
-  const query = params.toString();
+  const headers = await authHeaders();
 
   const response = await fetch(
-    `${API_URL}/admin/analytics${
-      query ? `?${query}` : ""
-    }`,
+    `${API_URL}/uploads/presign`,
     {
-      method: "GET",
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type,
+        uploadType,
+        ...(reportId
+          ? {
+              reportId,
+              existingReportId: reportId,
+            }
+          : {}),
+      }),
+    }
+  );
+
+  return parseResponse<UploadResponse>(
+    response
+  );
+}
+
+/**
+ * Public upload endpoint used for anonymous reports.
+ *
+ * No Cognito token is attached here intentionally.
+ */
+export async function getAnonymousUploadUrl(
+  file: File,
+  reportId?: string,
+  uploadType: UploadType = "evidence"
+): Promise<UploadResponse> {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/anonymous/uploads/presign`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type,
+        uploadType,
+        ...(reportId
+          ? {
+              reportId,
+              existingReportId: reportId,
+            }
+          : {}),
+      }),
+    }
+  );
+
+  return parseResponse<UploadResponse>(
+    response
+  );
+}
+
+export async function uploadEvidence(
+  uploadUrl: string,
+  file: File,
+  contentType?: string
+): Promise<void> {
+  const uploadContentType =
+    contentType ||
+    file.type ||
+    "application/octet-stream";
+
+  const response = await fetch(
+    uploadUrl,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": uploadContentType,
+      },
+      body: file,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `File upload failed with status ${response.status}.`
+    );
+  }
+}
+
+// =========================================================
+// REPORT CREATION
+// =========================================================
+
+/**
+ * Create a normal authenticated citizen report.
+ */
+export async function createReport(
+  payload: CreateReportPayload
+) {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/reports`,
+    {
+      method: "POST",
       headers: await authHeaders(),
-      cache: "no-store",
+      body: JSON.stringify(payload),
     }
   );
 
   return parseResponse(response);
 }
 
-/* =========================================================
-   CITIZEN REPORTS
-   ========================================================= */
+/**
+ * Create an anonymous report.
+ *
+ * This endpoint deliberately does not send an
+ * Authorization header.
+ */
+export async function createAnonymousReport(
+  payload: CreateReportPayload
+) {
+  requireApiUrl();
 
-export type CitizenReport = {
-  reportId: string;
+  const response = await fetch(
+    `${API_URL}/anonymous/reports`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
-  incidentType: string;
+  return parseResponse(response);
+}
 
-  description: string;
-
-  descriptionType?: ReportDescriptionType;
-
-  audioKey?: string;
-
-  audioContentType?: string;
-
-  audioUrl?: string;
-
-  town: string;
-
-  quarter: string;
-
-  status: string;
-
-  createdAt: string;
-
-  updatedAt?: string;
-
-  resolvedAt?: string;
-
-  evidenceCount: number;
-
-  statusHistory: {
-    status: string;
-    timestamp: string;
-    actor: string;
-  }[];
-};
+// =========================================================
+// CITIZEN REPORTS
+// =========================================================
 
 export async function getMyReports(): Promise<{
   reports: CitizenReport[];
   count: number;
 }> {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  requireApiUrl();
 
   const response = await fetch(
     `${API_URL}/reports/my`,
@@ -519,11 +448,7 @@ export async function getMyReport(
 ): Promise<{
   report: CitizenReport;
 }> {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  requireApiUrl();
 
   const response = await fetch(
     `${API_URL}/reports/my/${encodeURIComponent(
@@ -539,18 +464,99 @@ export async function getMyReport(
   return parseResponse(response);
 }
 
-/* =========================================================
-   ADMIN VOICE DESCRIPTION
-   ========================================================= */
+// =========================================================
+// ADMIN REPORTS
+// =========================================================
 
-export async function getReportDescriptionAudioUrl(
+export async function getAdminReports(): Promise<{
+  reports: AdminReport[];
+}> {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/reports`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+export async function resolveReport(
   reportId: string
 ) {
-  if (!API_URL) {
-    throw new Error(
-      "API URL is not configured."
-    );
-  }
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/reports/${encodeURIComponent(
+      reportId
+    )}`,
+    {
+      method: "PATCH",
+      headers: await authHeaders(),
+      body: JSON.stringify({
+        status: "RESOLVED",
+      }),
+    }
+  );
+
+  return parseResponse(response);
+}
+
+// =========================================================
+// ADMIN EVIDENCE
+// =========================================================
+
+export async function getEvidenceUrl(
+  reportId: string
+) {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/reports/${encodeURIComponent(
+      reportId
+    )}/evidence`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+export async function getEvidenceDownloadUrl(
+  reportId: string,
+  index: number
+) {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/reports/${encodeURIComponent(
+      reportId
+    )}/evidence/${index}/download`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+// =========================================================
+// ADMIN VOICE DESCRIPTIONS
+// =========================================================
+
+export async function getAdminDescriptionAudioUrl(
+  reportId: string
+) {
+  requireApiUrl();
 
   const response = await fetch(
     `${API_URL}/admin/reports/${encodeURIComponent(
@@ -564,4 +570,162 @@ export async function getReportDescriptionAudioUrl(
   );
 
   return parseResponse(response);
+}
+
+/**
+ * Backwards-compatible API name used by the admin page.
+ *
+ * app/admin/page.tsx imports:
+ * getReportDescriptionAudioUrl
+ *
+ * Keep both names so existing code using
+ * getAdminDescriptionAudioUrl continues to work.
+ */
+export const getReportDescriptionAudioUrl =
+  getAdminDescriptionAudioUrl;
+
+// =========================================================
+// ADMIN PDF
+// =========================================================
+
+export async function getReportPdfUrl(
+  reportId: string
+) {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/reports/${encodeURIComponent(
+      reportId
+    )}/pdf`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+// =========================================================
+// ADMIN NOTIFICATIONS
+// =========================================================
+
+export async function getAdminNotifications(): Promise<{
+  notifications: AdminNotification[];
+}> {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/notifications`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+export async function getAdminNotificationCount(): Promise<{
+  count: number;
+}> {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/notifications/count`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse(response);
+}
+
+export async function acknowledgeNotification(
+  notificationId: string
+) {
+  requireApiUrl();
+
+  const response = await fetch(
+    `${API_URL}/admin/notifications/${encodeURIComponent(
+      notificationId
+    )}`,
+    {
+      method: "PATCH",
+      headers: await authHeaders(),
+      body: JSON.stringify({
+        status: "ACKNOWLEDGED",
+      }),
+    }
+  );
+
+  return parseResponse(response);
+}
+
+// =========================================================
+// ADMIN ANALYTICS
+// =========================================================
+
+export async function getAdminAnalytics(
+  params?: {
+    type?: string;
+    town?: string;
+    status?: string;
+    period?: string;
+  }
+): Promise<AdminAnalytics> {
+  requireApiUrl();
+
+  const searchParams =
+    new URLSearchParams();
+
+  if (params?.type) {
+    searchParams.set(
+      "type",
+      params.type
+    );
+  }
+
+  if (params?.town) {
+    searchParams.set(
+      "town",
+      params.town
+    );
+  }
+
+  if (params?.status) {
+    searchParams.set(
+      "status",
+      params.status
+    );
+  }
+
+  if (params?.period) {
+    searchParams.set(
+      "period",
+      params.period
+    );
+  }
+
+  const query =
+    searchParams.toString();
+
+  const response = await fetch(
+    `${API_URL}/admin/analytics${
+      query ? `?${query}` : ""
+    }`,
+    {
+      method: "GET",
+      headers: await authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  return parseResponse<AdminAnalytics>(
+    response
+  );
 }
