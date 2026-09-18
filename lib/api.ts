@@ -43,6 +43,11 @@ export type CreateReportPayload = {
 
   town: string;
   quarter: string;
+
+  latitude: number;
+  longitude: number;
+  locationAccuracy: number;
+  locationCapturedAt: string;
 };
 
 export type UploadResponse = {
@@ -79,6 +84,11 @@ export type CitizenReport = {
 
   town: string;
   quarter: string;
+
+  latitude?: number | string;
+  longitude?: number | string;
+  locationAccuracy?: number | string;
+  locationCapturedAt?: string;
 
   status: string;
 
@@ -123,6 +133,11 @@ export type AdminReport = {
 
   town: string;
   quarter: string;
+
+  latitude?: number | string;
+  longitude?: number | string;
+  locationAccuracy?: number | string;
+  locationCapturedAt?: string;
 
   status: string;
 

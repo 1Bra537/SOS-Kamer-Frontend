@@ -209,6 +209,24 @@ function IncidentBadge({
   );
 }
 
+/* =================================================
+    LOCATION
+================================================= */
+
+function hasReportLocation(report: Report) {
+  const latitude = Number(report.latitude);
+  const longitude = Number(report.longitude);
+
+  return (
+    Number.isFinite(latitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    Number.isFinite(longitude) &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
 function AdminDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -535,9 +553,9 @@ function AdminDashboard() {
     return (
       <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">
+          {/* <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">
             🎙️
-          </span>
+          </span> */}
 
           <div className="min-w-0">
             <p className="text-xs font-bold text-violet-800">
@@ -1082,7 +1100,7 @@ function AdminDashboard() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100"
               >
-                🔔 Notifications
+                 Notifications
 
                 <span className="rounded-full bg-amber-700 px-2 py-0.5 text-[11px] font-bold text-white">
                   {notificationCount}
@@ -1102,7 +1120,7 @@ function AdminDashboard() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
               >
-                📊 Analytics
+                 Analytics
               </button>
 
               <button
@@ -1724,11 +1742,11 @@ function AdminDashboard() {
                                 />
 
                                 {report.descriptionType ===
-                                  "VOICE" && (
-                                  <span className="inline-flex w-fit items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">
-                                    🎙️ Voice
-                                  </span>
-                                )}
+                                  "VOICE" 
+                                  // <span className="inline-flex w-fit items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">
+                                  //    Voice
+                                  // </span>
+                                }
 
                               </div>
 
@@ -1833,6 +1851,26 @@ function AdminDashboard() {
                                     View
                                   </button>
 
+                                )}
+
+                                {/* =================================================
+                                    VIEW LOCATION
+                                ================================================= */}
+
+                                {hasReportLocation(report) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      router.push(
+                                        `/admin/locations?reportId=${encodeURIComponent(
+                                          report.reportId
+                                        )}`
+                                      )
+                                    }
+                                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100"
+                                  >
+                                     Location
+                                  </button>
                                 )}
 
                                 <button
@@ -1999,6 +2037,26 @@ function AdminDashboard() {
                         </div>
 
                         <div className="mt-4 flex gap-2">
+
+                          {/* =================================================
+                              VIEW LOCATION
+                          ================================================= */}
+
+                          {hasReportLocation(report) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(
+                                  `/admin/locations?reportId=${encodeURIComponent(
+                                    report.reportId
+                                  )}`
+                                )
+                              }
+                              className="flex-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                            >
+                               View location
+                            </button>
+                          )}
 
                           {evidenceCount >
                             0 && (

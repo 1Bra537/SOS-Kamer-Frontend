@@ -87,6 +87,13 @@ type ReportMode =
   | "AUTHENTICATED"
   | "ANONYMOUS";
 
+type DeviceLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  capturedAt: string;
+};
+
 // =========================================================
 // COMPONENT
 // =========================================================
@@ -145,6 +152,33 @@ export default function ReportPage() {
     quarter,
     setQuarter,
   ] = useState("");
+
+  // -------------------------------------------------------
+  // Automatic device location
+  // -------------------------------------------------------
+
+  const [
+    deviceLocation,
+    setDeviceLocation,
+  ] = useState<DeviceLocation | null>(
+    null
+  );
+
+  const [
+    locationLoading,
+    setLocationLoading,
+  ] = useState(true);
+
+  const [
+    locationError,
+    setLocationError,
+  ] = useState("");
+
+  const locationWatchIdRef =
+    useRef<number | null>(null);
+
+  const latestLocationRef =
+    useRef<DeviceLocation | null>(null);
 
   // -------------------------------------------------------
   // Evidence
@@ -252,6 +286,314 @@ export default function ReportPage() {
     }
 
     checkAuthentication();
+  }, []);
+
+  // =======================================================
+  // AUTOMATIC DEVICE LOCATION
+  // =======================================================
+
+  function getLocationErrorMessage(
+    error: GeolocationPositionError
+  ) {
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        return "Location access was denied. Please enable location permission in your browser.";
+
+      case error.POSITION_UNAVAILABLE:
+        return "Your device location is currently unavailable. Please try again.";
+
+      case error.TIMEOUT:
+        return "Location detection timed out. Please try again.";
+
+      default:
+        return "Unable to determine your current location.";
+    }
+  }
+
+  function applyLocation(
+    position: GeolocationPosition
+  ) {
+    const nextLocation: DeviceLocation = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      capturedAt: new Date(
+        position.timestamp
+      ).toISOString(),
+    };
+
+    latestLocationRef.current =
+      nextLocation;
+
+    setDeviceLocation(
+      nextLocation
+    );
+
+    setLocationError("");
+    setLocationLoading(false);
+  }
+
+async function requestFreshLocation(): Promise<DeviceLocation> {
+  if (!navigator.geolocation) {
+    const message =
+      "Location services are not supported by this browser.";
+
+    setLocationLoading(false);
+    setLocationError(message);
+
+    throw new Error(message);
+  }
+
+  setLocationLoading(true);
+  setLocationError("");
+
+  const latestLocation =
+    latestLocationRef.current;
+
+  // -------------------------------------------------------
+  // Use a very recent location already captured by
+  // watchPosition().
+  // -------------------------------------------------------
+
+  if (latestLocation) {
+    const capturedTime = new Date(
+      latestLocation.capturedAt
+    ).getTime();
+
+    const age =
+      Date.now() - capturedTime;
+
+    if (
+      Number.isFinite(age) &&
+      age >= 0 &&
+      age <= 30_000
+    ) {
+      setDeviceLocation(
+        latestLocation
+      );
+
+      setLocationLoading(false);
+      setLocationError("");
+
+      return latestLocation;
+    }
+  }
+
+  // -------------------------------------------------------
+  // Helper for getCurrentPosition()
+  // -------------------------------------------------------
+
+  const getPosition = (
+    options: PositionOptions
+  ): Promise<GeolocationPosition> => {
+    return new Promise(
+      (resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          options
+        );
+      }
+    );
+  };
+
+  // -------------------------------------------------------
+  // First attempt:
+  // Normal accuracy / faster browser location lookup.
+  // This is more reliable on laptops and desktops.
+  // -------------------------------------------------------
+
+  try {
+    const position =
+      await getPosition({
+        enableHighAccuracy: false,
+        maximumAge: 15_000,
+        timeout: 20_000,
+      });
+
+    const nextLocation: DeviceLocation = {
+      latitude:
+        position.coords.latitude,
+
+      longitude:
+        position.coords.longitude,
+
+      accuracy:
+        position.coords.accuracy,
+
+      capturedAt:
+        new Date(
+          position.timestamp
+        ).toISOString(),
+    };
+
+    latestLocationRef.current =
+      nextLocation;
+
+    setDeviceLocation(
+      nextLocation
+    );
+
+    setLocationLoading(false);
+    setLocationError("");
+
+    return nextLocation;
+  } catch (normalAccuracyError) {
+    console.warn(
+      "Normal-accuracy location lookup failed:",
+      normalAccuracyError
+    );
+  }
+
+  // -------------------------------------------------------
+  // Second attempt:
+  // High accuracy for devices that can provide GPS.
+  // -------------------------------------------------------
+
+  try {
+    const position =
+      await getPosition({
+        enableHighAccuracy: true,
+        maximumAge: 10_000,
+        timeout: 20_000,
+      });
+
+    const nextLocation: DeviceLocation = {
+      latitude:
+        position.coords.latitude,
+
+      longitude:
+        position.coords.longitude,
+
+      accuracy:
+        position.coords.accuracy,
+
+      capturedAt:
+        new Date(
+          position.timestamp
+        ).toISOString(),
+    };
+
+    latestLocationRef.current =
+      nextLocation;
+
+    setDeviceLocation(
+      nextLocation
+    );
+
+    setLocationLoading(false);
+    setLocationError("");
+
+    return nextLocation;
+  } catch (highAccuracyError) {
+    console.warn(
+      "High-accuracy location lookup failed:",
+      highAccuracyError
+    );
+  }
+
+  // -------------------------------------------------------
+  // Final fallback:
+  // Use the most recent watcher position when it is
+  // reasonably recent.
+  // -------------------------------------------------------
+
+  const fallbackLocation =
+    latestLocationRef.current;
+
+  if (fallbackLocation) {
+    const capturedTime =
+      new Date(
+        fallbackLocation.capturedAt
+      ).getTime();
+
+    const age =
+      Date.now() - capturedTime;
+
+    if (
+      Number.isFinite(age) &&
+      age >= 0 &&
+      age <= 120_000
+    ) {
+      setDeviceLocation(
+        fallbackLocation
+      );
+
+      setLocationLoading(false);
+      setLocationError("");
+
+      return fallbackLocation;
+    }
+  }
+
+  // -------------------------------------------------------
+  // Nothing usable was available.
+  // -------------------------------------------------------
+
+  const message =
+    "We could not determine your current device location. Please enable location services and try again.";
+
+  setLocationLoading(false);
+  setLocationError(message);
+
+  throw new Error(message);
+}
+
+  useEffect(() => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
+      setLocationLoading(false);
+      setLocationError(
+        "Location services are not supported by this browser."
+      );
+
+      return;
+    }
+
+    setLocationLoading(true);
+
+   locationWatchIdRef.current =
+  navigator.geolocation.watchPosition(
+    applyLocation,
+    (error) => {
+      console.warn(
+        "Location watcher error:",
+        error
+      );
+
+      // Do not destroy an already valid location
+      // just because a later watcher attempt failed.
+      if (!latestLocationRef.current) {
+        setLocationLoading(false);
+        setLocationError(
+          getLocationErrorMessage(
+            error
+          )
+        );
+      }
+    },
+    {
+      enableHighAccuracy: false,
+      maximumAge: 10_000,
+      timeout: 30_000,
+    }
+  );
+
+    return () => {
+      if (
+        locationWatchIdRef.current !==
+        null
+      ) {
+        navigator.geolocation.clearWatch(
+          locationWatchIdRef.current
+        );
+
+        locationWatchIdRef.current =
+          null;
+      }
+    };
   }, []);
 
   // =======================================================
@@ -755,6 +1097,9 @@ export default function ReportPage() {
     setIsSubmitting(true);
 
     try {
+      const submissionLocation =
+        await requestFreshLocation();
+
       if (
         reportMode ===
         "AUTHENTICATED"
@@ -923,6 +1268,15 @@ export default function ReportPage() {
         town: town.trim(),
         quarter:
           quarter.trim(),
+
+        latitude:
+          submissionLocation.latitude,
+        longitude:
+          submissionLocation.longitude,
+        locationAccuracy:
+          submissionLocation.accuracy,
+        locationCapturedAt:
+          submissionLocation.capturedAt,
       };
 
       if (
@@ -1027,7 +1381,7 @@ export default function ReportPage() {
                 REPORT REFERENCE
             ------------------------------------------------ */}
 
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
+            {/* <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
                 Report reference
               </p>
@@ -1040,7 +1394,7 @@ export default function ReportPage() {
                 Keep this reference for your
                 records.
               </p>
-            </div>
+            </div> */}
 
             {reportMode ===
               "ANONYMOUS" && (
@@ -1649,9 +2003,7 @@ export default function ReportPage() {
                           !voiceFile && (
                             <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
                               Explain what happened
-                              clearly. Your voice recording
-                              will be securely uploaded with
-                              the report.
+                              clearly.
                             </p>
                           )}
                       </div>
@@ -1812,6 +2164,76 @@ export default function ReportPage() {
                       placeholder="e.g. Bonanjo"
                       className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-100"
                     />
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 px-5 py-5 sm:px-6">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                          deviceLocation
+                            ? "bg-emerald-100 text-emerald-700"
+                            : locationError
+                              ? "bg-red-100 text-red-700"
+                              : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-800">
+                          Device location
+                        </p>
+
+                        {locationLoading &&
+                        !deviceLocation ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Detecting your current location...
+                          </p>
+                        ) : deviceLocation ? (
+                          <>
+                            <p className="mt-1 text-xs font-semibold text-emerald-700">
+                              Location detected automatically
+                            </p>
+
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              Accuracy: approximately {Math.round(
+                                deviceLocation.accuracy
+                              )} m
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="mt-1 text-xs font-semibold text-red-700">
+                              Location unavailable
+                            </p>
+
+                            <p className="mt-1 text-[11px] leading-5 text-red-600">
+                              {locationError}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void requestFreshLocation();
+                        }}
+                        disabled={locationLoading}
+                        className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {locationLoading
+                          ? "Detecting..."
+                          : "Retry"}
+                      </button>
+                    </div>
+
+                    <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                      Your coordinates are captured automatically from your device.
+                    </p>
                   </div>
                 </div>
               </section>
@@ -2198,13 +2620,15 @@ export default function ReportPage() {
                     <span
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
                         town.trim() &&
-                        quarter.trim()
+                        quarter.trim() &&
+                        deviceLocation
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-slate-100 text-slate-400"
                       }`}
                     >
                       {town.trim() &&
-                      quarter.trim()
+                      quarter.trim() &&
+                      deviceLocation
                         ? "✓"
                         : "—"}
                     </span>
@@ -2216,9 +2640,10 @@ export default function ReportPage() {
 
                       <p className="mt-0.5 text-[11px] text-slate-400">
                         {town.trim() &&
-                        quarter.trim()
-                          ? `${town}, ${quarter}`
-                          : "Not provided"}
+                        quarter.trim() &&
+                        deviceLocation
+                          ? `${town}, ${quarter} · GPS ready`
+                          : "Location information incomplete"}
                       </p>
                     </div>
                   </div>
@@ -2288,7 +2713,8 @@ export default function ReportPage() {
                     type="submit"
                     disabled={
                       isSubmitting ||
-                      isRecording
+                      isRecording ||
+                      !deviceLocation
                     }
                     className="group flex h-13 w-full items-center justify-center gap-3 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-lg shadow-red-900/20 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -2297,6 +2723,10 @@ export default function ReportPage() {
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-white" />
 
                         Submitting report...
+                      </>
+                    ) : !deviceLocation ? (
+                      <>
+                        Waiting for location...
                       </>
                     ) : (
                       <>
