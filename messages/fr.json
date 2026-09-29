@@ -1,0 +1,54 @@
+{
+  "common": {
+    "appName": "SOS-Kamer",
+    "tagline": "Des interventions d'urgence plus rapides",
+    "home": "Accueil",
+    "signIn": "Se connecter",
+    "createAccount": "Créer un compte",
+    "signOut": "Se déconnecter",
+    "signingOut": "Déconnexion...",
+    "reportIncident": "Signaler un incident",
+    "viewMyReports": "Voir mes signalements",
+    "call": "Appeler",
+    "language": "Langue",
+    "english": "English",
+    "french": "Français",
+    "loading": "Chargement...",
+    "unknown": "Inconnu",
+    "back": "Retour"
+  },
+  "home": {
+    "emergencySupport": "Assistance d'urgence au Cameroun",
+    "heroTitle": "Obtenez de l'aide quand cela compte le plus.",
+    "heroDescription": "SOS-Kamer vous aide à signaler des incidents, à partager des informations utiles et à suivre l'évolution de votre signalement.",
+    "immediateDangerTitle": "Êtes-vous en danger immédiat ?",
+    "immediateDangerDescription": "N'attendez pas pour faire un signalement. Appelez directement le service d'urgence approprié.",
+    "emergencyServices": "Services d'urgence",
+    "emergencyServicesDescription": "Appuyez sur un service pour ouvrir le composeur de votre téléphone avec le numéro prêt à être appelé.",
+    "phoneConfirmation": "Votre téléphone peut vous demander de confirmer l'appel avant de composer le numéro.",
+    "howItWorks": "Comment fonctionne SOS-Kamer",
+    "howItWorksTitle": "Signalez un incident et suivez la suite des événements.",
+    "howItWorksDescription": "Lorsque vous n'êtes pas en danger immédiat, SOS-Kamer vous offre un moyen simple de signaler un incident et d'en suivre l'évolution.",
+    "reportStep": "Signaler",
+    "reportStepDescription": "Expliquez ce qui s'est passé et fournissez les informations importantes.",
+    "evidenceStep": "Ajouter des preuves",
+    "evidenceStepDescription": "Partagez des photos ou des vidéos lorsque vous pouvez le faire en toute sécurité.",
+    "trackStep": "Suivre",
+    "trackStepDescription": "Consultez votre signalement et suivez son statut depuis votre compte.",
+    "footer": "Des interventions d'urgence plus rapides"
+  },
+  "emergency": {
+    "police": "Police",
+    "policeDescription": "Pour les menaces immédiates à la sécurité et les urgences policières.",
+    "gendarmerie": "Gendarmerie",
+    "gendarmerieDescription": "Pour une assistance urgente de la Gendarmerie nationale.",
+    "fire": "Pompiers et secours",
+    "fireDescription": "Pour les incendies, accidents, opérations de secours et autres dangers urgents.",
+    "medical": "Urgence médicale",
+    "medicalDescription": "Pour une assistance médicale urgente et les urgences de santé."
+  },
+  "languageSwitcher": {
+    "label": "Langue",
+    "switchTo": "Changer de langue"
+  }
+}

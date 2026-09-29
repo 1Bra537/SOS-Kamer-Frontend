@@ -1,0 +1,54 @@
+{
+  "common": {
+    "appName": "SOS-Kamer",
+    "tagline": "Faster Emergency Connections",
+    "home": "Home",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "signOut": "Sign out",
+    "signingOut": "Signing out...",
+    "reportIncident": "Report an incident",
+    "viewMyReports": "View my reports",
+    "call": "Call",
+    "language": "Language",
+    "english": "English",
+    "french": "Français",
+    "loading": "Loading...",
+    "unknown": "Unknown",
+    "back": "Back"
+  },
+  "home": {
+    "emergencySupport": "Emergency support in Cameroon",
+    "heroTitle": "Get help when it matters most.",
+    "heroDescription": "SOS-Kamer helps you report incidents, share useful information and follow the progress of your report.",
+    "immediateDangerTitle": "Are you in immediate danger?",
+    "immediateDangerDescription": "Do not wait for a report. Call the appropriate emergency service directly.",
+    "emergencyServices": "Emergency services",
+    "emergencyServicesDescription": "Tap a service to open your phone dialer with the number ready.",
+    "phoneConfirmation": "Your phone may ask you to confirm the call before dialing.",
+    "howItWorks": "How SOS-Kamer works",
+    "howItWorksTitle": "Report an incident and follow what happens next.",
+    "howItWorksDescription": "When you are not in immediate danger, SOS-Kamer gives you a simple way to report an incident and keep track of its progress.",
+    "reportStep": "Report",
+    "reportStepDescription": "Tell us what happened and provide the important details.",
+    "evidenceStep": "Add evidence",
+    "evidenceStepDescription": "Share photos or video when it is safe to do so.",
+    "trackStep": "Track",
+    "trackStepDescription": "Check your report and follow its status from your account.",
+    "footer": "Faster Emergency Connections"
+  },
+  "emergency": {
+    "police": "Police",
+    "policeDescription": "For immediate security threats and police emergencies.",
+    "gendarmerie": "Gendarmerie",
+    "gendarmerieDescription": "For urgent security assistance from the National Gendarmerie.",
+    "fire": "Fire and Rescue",
+    "fireDescription": "For fires, accidents, rescue and other urgent hazards.",
+    "medical": "Medical Emergency",
+    "medicalDescription": "For urgent medical assistance and health emergencies."
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "switchTo": "Switch language"
+  }
+}

@@ -1,29 +1,30 @@
 import Link from "next/link";
+import {getTranslations} from "next-intl/server";
 
 const emergencyServices = [
   {
-    name: "Police",
+    key: "police",
     number: "117",
-    description: "For immediate security threats and police emergencies.",
   },
   {
-    name: "Gendarmerie",
+    key: "gendarmerie",
     number: "113",
-    description: "For urgent security assistance from the National Gendarmerie.",
   },
   {
-    name: "Fire and Rescue",
+    key: "fire",
     number: "118",
-    description: "For fires, accidents, rescue and other urgent hazards.",
   },
   {
-    name: "Medical Emergency",
+    key: "medical",
     number: "119",
-    description: "For urgent medical assistance and health emergencies.",
   },
-];
+] as const;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const t = await getTranslations("home");
+  const common = await getTranslations("common");
+  const emergency = await getTranslations("emergency");
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       {/* HEADER */}
@@ -38,7 +39,7 @@ export default function HomePage() {
                 SOS<span className="text-red-600">-Kamer</span>
               </p>
               <p className="text-[10px] font-medium text-slate-400">
-                Faster Emergency Connections
+                {common("tagline")}
               </p>
             </div>
           </Link>
@@ -48,13 +49,13 @@ export default function HomePage() {
               href="/login"
               className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Sign in
+              {common("signIn")}
             </Link>
             <Link
               href="/signup"
               className="hidden rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 sm:inline-flex"
             >
-              Create account
+              {common("createAccount")}
             </Link>
           </div>
         </div>
@@ -65,23 +66,21 @@ export default function HomePage() {
         <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-20">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">
-              Emergency support in Cameroon
+              {t("emergencySupport")}
             </p>
 
             <h1 className="mt-3 max-w-2xl text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
-              Get help when it matters most.
+              {t("heroTitle")}
             </h1>
 
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-500 sm:text-lg">
-              SOS-Kamer helps you report incidents, share useful information and
-              follow the progress of your report.
+              {t("heroDescription")}
             </p>
 
             <div className="mt-7 rounded-xl border border-red-200 bg-red-50 p-4 sm:p-5">
-              <p className="text-sm font-bold text-red-700">Are you in immediate danger?</p>
+              <p className="text-sm font-bold text-red-700">{t("immediateDangerTitle")}</p>
               <p className="mt-1 text-sm leading-6 text-red-700/80">
-                Do not wait for a report. Call the appropriate emergency service
-                directly.
+                {t("immediateDangerDescription")}
               </p>
             </div>
 
@@ -90,13 +89,13 @@ export default function HomePage() {
                 href="/report"
                 className="inline-flex items-center justify-center rounded-lg bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-700"
               >
-                Report an incident
+                {common("reportIncident")}
               </Link>
               <Link
                 href="/login"
                 className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
               >
-                View my reports
+                {common("viewMyReports")}
               </Link>
             </div>
           </div>
@@ -104,9 +103,9 @@ export default function HomePage() {
           {/* EMERGENCY SERVICES */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-5">
             <div className="mb-5">
-              <h2 className="text-xl font-bold text-slate-950">Emergency services</h2>
+              <h2 className="text-xl font-bold text-slate-950">{t("emergencyServices")}</h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Tap a service to open your phone dialer with the number ready.
+                {t("emergencyServicesDescription")}
               </p>
             </div>
 
@@ -119,9 +118,11 @@ export default function HomePage() {
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-950">{service.name}</p>
+                      <p className="font-bold text-slate-950">
+                        {emergency(`${service.key}`)}
+                      </p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        {service.description}
+                        {emergency(`${service.key}Description`)}
                       </p>
                     </div>
 
@@ -130,7 +131,7 @@ export default function HomePage() {
                         {service.number}
                       </p>
                       <span className="mt-1 inline-flex rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition group-hover:bg-red-700">
-                        Call
+                        {common("call")}
                       </span>
                     </div>
                   </div>
@@ -139,7 +140,7 @@ export default function HomePage() {
             </div>
 
             <p className="mt-4 text-center text-[11px] leading-5 text-slate-400">
-              Your phone may ask you to confirm the call before dialing.
+              {t("phoneConfirmation")}
             </p>
           </div>
         </div>
@@ -150,22 +151,21 @@ export default function HomePage() {
         <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-8 lg:py-16">
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">
-              How SOS-Kamer works
+              {t("howItWorks")}
             </p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              Report an incident and follow what happens next.
+              {t("howItWorksTitle")}
             </h2>
             <p className="mt-4 text-base leading-7 text-slate-500">
-              When you are not in immediate danger, SOS-Kamer gives you a simple
-              way to report an incident and keep track of its progress.
+              {t("howItWorksDescription")}
             </p>
           </div>
 
           <div className="mt-9 grid gap-4 md:grid-cols-3">
             {[
-              ["01", "Report", "Tell us what happened and provide the important details."],
-              ["02", "Add evidence", "Share photos or video when it is safe to do so."],
-              ["03", "Track", "Check your report and follow its status from your account."],
+              ["01", t("reportStep"), t("reportStepDescription")],
+              ["02", t("evidenceStep"), t("evidenceStepDescription")],
+              ["03", t("trackStep"), t("trackStepDescription")],
             ].map(([number, title, text]) => (
               <div
                 key={number}
@@ -183,13 +183,13 @@ export default function HomePage() {
       {/* FOOTER */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-7 text-sm text-slate-400 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} SOS-Kamer. Faster Emergency Connections.</p>
+          <p>© {new Date().getFullYear()} SOS-Kamer. {t("footer")}.</p>
           <div className="flex gap-4">
             <Link href="/login" className="transition hover:text-slate-700">
-              Sign in
+              {common("signIn")}
             </Link>
             <Link href="/signup" className="transition hover:text-slate-700">
-              Create account
+              {common("createAccount")}
             </Link>
           </div>
         </div>
