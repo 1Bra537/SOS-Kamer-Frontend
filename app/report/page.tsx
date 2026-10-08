@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import T from "../../components/T";
 import {
   ChangeEvent,
   FormEvent,
@@ -28,36 +30,7 @@ import SignOutButton from "../../components/SignOutButton";
 // CONSTANTS
 // =========================================================
 
-const incidentTypes = [
-  {
-    value: "CHILD_ABUSE",
-    label: "Child abuse",
-    description:
-      "Abuse or harm involving a child",
-    critical: true,
-  },
-  {
-    value: "FIGHT",
-    label: "Fight / assault",
-    description:
-      "Physical violence or assault",
-    critical: false,
-  },
-  {
-    value: "THEFT",
-    label: "Theft",
-    description:
-      "Property or belongings taken",
-    critical: false,
-  },
-  {
-    value: "OTHER",
-    label: "Other incident",
-    description:
-      "Another incident requiring attention",
-    critical: false,
-  },
-];
+
 
 const ALLOWED_EVIDENCE_TYPES = [
   "image/jpeg",
@@ -99,7 +72,39 @@ type DeviceLocation = {
 // =========================================================
 
 export default function ReportPage() {
+  const tu = useTranslations("ui");
   const router = useRouter();
+
+  const incidentTypes = [
+  {
+    value: "CHILD_ABUSE",
+    label: tu("childAbuse"),
+    description:
+      tu("childAbuseDesc"),
+    critical: true,
+  },
+  {
+    value: "FIGHT",
+    label: tu("fight"),
+    description:
+      tu("fightDesc"),
+    critical: false,
+  },
+  {
+    value: "THEFT",
+    label: tu("theft"),
+    description:
+      tu("theftDesc"),
+    critical: false,
+  },
+  {
+    value: "OTHER",
+    label: tu("other"),
+    description:
+      tu("otherDesc"),
+    critical: false,
+  },
+];;
 
   // -------------------------------------------------------
   // Authentication / report mode
@@ -297,13 +302,13 @@ export default function ReportPage() {
   ) {
     switch (error.code) {
       case error.PERMISSION_DENIED:
-        return "Location access was denied. Please enable location permission in your browser.";
+        return tu("locationAccessDenied");
 
       case error.POSITION_UNAVAILABLE:
         return "Your device location is currently unavailable. Please try again.";
 
       case error.TIMEOUT:
-        return "Location detection timed out. Please try again.";
+        return tu("locationTimeout");
 
       default:
         return "Unable to determine your current location.";
@@ -336,7 +341,7 @@ export default function ReportPage() {
 async function requestFreshLocation(): Promise<DeviceLocation> {
   if (!navigator.geolocation) {
     const message =
-      "Location services are not supported by this browser.";
+      tu("locationUnsupported");
 
     setLocationLoading(false);
     setLocationError(message);
@@ -546,7 +551,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
     ) {
       setLocationLoading(false);
       setLocationError(
-        "Location services are not supported by this browser."
+        tu("locationUnsupported")
       );
 
       return;
@@ -708,7 +713,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
     } catch (err: any) {
       setError(
         err?.message ||
-          "One or more selected files are invalid."
+          tu("invalidFiles")
       );
     }
   }
@@ -947,7 +952,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
       console.error(err);
 
       setError(
-        "Microphone access was not granted. Please allow microphone access and try again."
+        tu("microphoneDenied")
       );
     }
   }
@@ -1017,7 +1022,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
       if (
         !description.trim()
       ) {
-        return "Please describe the incident.";
+        return tu("needDescription");
       }
 
       return "";
@@ -1069,7 +1074,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
     if (!town.trim()) {
       setError(
-        "Please provide the town or city."
+        tu("needTown")
       );
 
       return;
@@ -1077,7 +1082,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
     if (!quarter.trim()) {
       setError(
-        "Please provide the quarter or neighborhood."
+        tu("needQuarter")
       );
 
       return;
@@ -1179,7 +1184,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
         !currentReportId
       ) {
         throw new Error(
-          "Could not create a report ID."
+          tu("couldNotCreateId")
         );
       }
 
@@ -1302,7 +1307,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
       setError(
         err?.message ||
-          "Could not submit report."
+          tu("couldNotSubmit")
       );
     } finally {
       setIsSubmitting(false);
@@ -1320,7 +1325,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-950" />
 
           <p className="mt-4 text-xs font-semibold text-slate-500">
-            Preparing secure reporting...
+            <T k="preparingSecure" />
           </p>
         </div>
       </main>
@@ -1363,19 +1368,14 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
             </div>
 
             <p className="mt-8 text-xs font-bold uppercase tracking-[0.18em] text-emerald-400">
-              Submission successful
+              <T k="submissionSuccessful" />
             </p>
 
             <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-              Your report has been received.
+              <T k="yourReportReceived" />
             </h1>
 
-            <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-400">
-              The incident information
-              and evidence were submitted
-              successfully to the
-              SOS-Kamer response system.
-            </p>
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-400"><T k="reportInfoSubmitted" /></p>
 
             {/* ------------------------------------------------
                 REPORT REFERENCE
@@ -1383,29 +1383,20 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
             {/* <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
-                Report reference
+                <T k="reportReference" />
               </p>
 
               <p className="mt-2 break-all font-mono text-sm font-semibold text-slate-200">
                 {reportId}
               </p>
 
-              <p className="mt-3 text-xs leading-5 text-slate-500">
-                Keep this reference for your
-                records.
-              </p>
+              <p className="mt-3 text-xs leading-5 text-slate-500"><T k="keepReference" /></p>
             </div> */}
 
             {reportMode ===
               "ANONYMOUS" && (
               <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-left">
-                <p className="text-xs font-semibold leading-5 text-amber-300">
-                  This report was submitted
-                  anonymously. It will not appear
-                  in a personal My Reports account.
-                  Keep the report reference above
-                  for your records.
-                </p>
+                <p className="text-xs font-semibold leading-5 text-amber-300"><T k="anonymousSubmitted" /></p>
               </div>
             )}
 
@@ -1416,7 +1407,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                   href="/reports"
                   className="inline-flex h-12 items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-bold shadow-lg shadow-red-950/30 transition hover:bg-red-500"
                 >
-                  View my reports
+                  <T k="viewMyReports" />
                 </Link>
               )}
 
@@ -1424,7 +1415,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                 href="/"
                 className="inline-flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-6 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]"
               >
-                Return home
+                <T k="returnHome" />
               </Link>
             </div>
           </div>
@@ -1462,7 +1453,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
               </p>
 
               <p className="hidden text-[10px] font-medium text-slate-400 sm:block">
-                Citizen Reporting
+                <T k="citizenReporting" />
               </p>
             </div>
           </Link>
@@ -1476,7 +1467,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                     href="/reports"
                     className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
                   >
-                    My reports
+                    <T k="myReports" />
                   </Link>
 
                   <SignOutButton />
@@ -1487,7 +1478,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
               reportMode ===
                 "ANONYMOUS" && (
                 <span className="rounded-lg bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-700">
-                  Anonymous mode
+                  <T k="anonymousMode" />
                 </span>
               )}
           </div>
@@ -1507,29 +1498,24 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-red-700">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-              Incident reporting
+              <T k="incidentReporting" />
             </div>
 
             <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              Tell us what happened.
+              <T k="tellWhatHappened" />
             </h1>
 
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-              Provide the incident details and
-              supporting evidence below. Accurate
-              information helps the response team
-              understand what happened.
-            </p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500"><T k="reportDetailsIntro" /></p>
           </div>
 
           <div className="hidden rounded-xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm lg:block">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Report status
+              <T k="reportStatus" />
             </p>
 
             <p className="mt-1 flex items-center justify-end gap-2 text-xs font-bold text-slate-700">
               <span className="h-2 w-2 rounded-full bg-red-500" />
-              Ready to submit
+              <T k="readyToSubmit" />
             </p>
           </div>
         </div>
@@ -1547,14 +1533,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
               <div>
                 <h2 className="text-sm font-bold text-slate-950">
-                  How would you like to report?
+                  <T k="howReport" />
                 </h2>
 
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  You can submit using your account or
-                  report anonymously without linking the
-                  incident to your account.
-                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500"><T k="accountOrAnonymous" /></p>
               </div>
             </div>
           </div>
@@ -1596,18 +1578,14 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-bold text-slate-800">
-                    Submit with my account
+                    <T k="submitWithAccount" />
                   </p>
 
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Your report will be linked to
-                    your account and available in
-                    My Reports.
-                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500"><T k="accountLinked" /></p>
 
                   {!isAuthenticated && (
                     <p className="mt-2 text-[10px] font-bold text-amber-600">
-                      Sign in to use this option.
+                      <T k="signInToUse" />
                     </p>
                   )}
                 </div>
@@ -1657,14 +1635,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-bold text-red-700">
-                    Report anonymously
+                    <T k="reportAnonymously" />
                   </p>
 
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    No account is required and the
-                    report will not be linked to your
-                    citizen account.
-                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500"><T k="anonymousNoAccount" /></p>
                 </div>
 
                 <span
@@ -1689,7 +1663,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
             <div className="border-t border-amber-100 bg-amber-50 px-5 py-4 sm:px-6">
               <p className="text-xs leading-5 text-amber-800">
                 <span className="font-bold">
-                  Anonymous reporting:
+                  <T k="anonymousReporting" />
                 </span>{" "}
                 your report will still be visible to
                 authorized SOS-Kamer administrators,
@@ -1712,7 +1686,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
             <div>
               <p className="text-sm font-bold text-red-800">
-                We need your attention
+                <T k="weNeedAttention" />
               </p>
 
               <p className="mt-1 text-xs leading-5 text-red-700">
@@ -1748,13 +1722,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <h2 className="text-sm font-bold text-slate-950">
-                        What happened?
+                        <T k="whatHappened" />
                       </h2>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        Select the incident type that
-                        best describes the situation.
-                      </p>
+                      <p className="mt-1 text-xs text-slate-500"><T k="selectIncident" /></p>
                     </div>
                   </div>
                 </div>
@@ -1857,13 +1828,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <h2 className="text-sm font-bold">
-                        Describe the incident
+                        <T k="describeIncident" />
                       </h2>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        You can describe what happened
-                        using text or your voice.
-                      </p>
+                      <p className="mt-1 text-xs text-slate-500"><T k="voiceDescribe" /></p>
                     </div>
                   </div>
                 </div>
@@ -1889,13 +1857,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       }`}
                     >
                       <p className="text-sm font-bold text-slate-800">
-                        Text description
+                        <T k="textDescription" />
                       </p>
 
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Type the details of what
-                        happened.
-                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500"><T k="provideDetails" /></p>
                     </button>
 
                     <button
@@ -1913,13 +1878,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       }`}
                     >
                       <p className="text-sm font-bold text-slate-800">
-                        Voice description
+                        <T k="voiceDescription" />
                       </p>
 
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Record yourself describing
-                        what happened.
-                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500"><T k="recordYourself" /></p>
                     </button>
                   </div>
 
@@ -1947,11 +1909,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                         className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-100"
                       />
 
-                      <p className="mt-2 text-[11px] text-slate-400">
-                        Be factual and specific.
-                        Avoid assumptions where
-                        possible.
-                      </p>
+                      <p className="mt-2 text-[11px] text-slate-400"><T k="factualSpecific" /></p>
                     </>
                   )}
 
@@ -2001,10 +1959,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                         {!isRecording &&
                           !voiceFile && (
-                            <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
-                              Explain what happened
-                              clearly.
-                            </p>
+                            <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500"><T k="explainClearly" /></p>
                           )}
                       </div>
 
@@ -2023,7 +1978,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                               <span>
                                 ●
                               </span>
-                              Start recording
+                              <T k="startRecording" />
                             </button>
                           )}
 
@@ -2038,7 +1993,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                             <span>
                               ■
                             </span>
-                            Stop recording
+                            <T k="stopRecording" />
                           </button>
                         )}
 
@@ -2052,7 +2007,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                                 }
                                 className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
                               >
-                                Record again
+                                <T k="recordAgain" />
                               </button>
 
                               <button
@@ -2062,7 +2017,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                                 }
                                 className="inline-flex h-11 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-5 text-xs font-bold text-red-600 transition hover:bg-red-100"
                               >
-                                Remove recording
+                                <T k="removeRecording" />
                               </button>
                             </div>
                           )}
@@ -2074,7 +2029,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                         !isRecording && (
                           <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
                             <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              Preview
+                              <T k="preview" />
                             </p>
 
                             <audio
@@ -2087,11 +2042,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                           </div>
                         )}
 
-                      <p className="mt-4 text-center text-[10px] leading-4 text-slate-400">
-                        Audio formats supported by the
-                        reporting system include WebM,
-                        OGG and MP4.
-                      </p>
+                      <p className="mt-4 text-center text-[10px] leading-4 text-slate-400"><T k="audioSupported" /></p>
                     </div>
                   )}
                 </div>
@@ -2110,13 +2061,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <h2 className="text-sm font-bold">
-                        Where did it happen?
+                        <T k="whereHappened" />
                       </h2>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        Give the town and neighborhood
-                        where the incident occurred.
-                      </p>
+                      <p className="mt-1 text-xs text-slate-500"><T k="giveTown" /></p>
                     </div>
                   </div>
                 </div>
@@ -2127,7 +2075,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       htmlFor="town"
                       className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500"
                     >
-                      Town / City
+                      <T k="townCity" />
                     </label>
 
                     <input
@@ -2149,7 +2097,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       htmlFor="quarter"
                       className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500"
                     >
-                      Quarter / Neighborhood
+                      <T k="quarterNeighborhood" />
                     </label>
 
                     <input
@@ -2184,22 +2132,22 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-slate-800">
-                          Device location
+                          <T k="deviceLocation" />
                         </p>
 
                         {locationLoading &&
                         !deviceLocation ? (
                           <p className="mt-1 text-xs text-slate-500">
-                            Detecting your current location...
+                            <T k="detectingLocation" />
                           </p>
                         ) : deviceLocation ? (
                           <>
                             <p className="mt-1 text-xs font-semibold text-emerald-700">
-                              Location detected automatically
+                              <T k="locationDetected" />
                             </p>
 
                             <p className="mt-1 text-[11px] text-slate-500">
-                              Accuracy: approximately {Math.round(
+                              <T k="accuracyApprox" /> {Math.round(
                                 deviceLocation.accuracy
                               )} m
                             </p>
@@ -2207,7 +2155,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                         ) : (
                           <>
                             <p className="mt-1 text-xs font-semibold text-red-700">
-                              Location unavailable
+                              <T k="locationUnavailable" />
                             </p>
 
                             <p className="mt-1 text-[11px] leading-5 text-red-600">
@@ -2232,7 +2180,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                     </div>
 
                     <p className="mt-3 text-[11px] leading-5 text-slate-500">
-                      Your coordinates are captured automatically from your device.
+                      <T k="coordsCaptured" />
                     </p>
                   </div>
                 </div>
@@ -2252,13 +2200,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                       <div>
                         <h2 className="text-sm font-bold">
-                          Add evidence
+                          <T k="addEvidence" />
                         </h2>
 
-                        <p className="mt-1 text-xs text-slate-500">
-                          At least one photo or video is
-                          required.
-                        </p>
+                        <p className="mt-1 text-xs text-slate-500"><T k="atLeastEvidence" /></p>
                       </div>
                     </div>
 
@@ -2281,11 +2226,11 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       </div>
 
                       <p className="mt-3 text-xs font-bold text-slate-800">
-                        Choose files
+                        <T k="chooseFiles" />
                       </p>
 
                       <p className="mt-1 text-[10px] text-slate-400">
-                        Photos or videos
+                        <T k="photosVideos" />
                       </p>
 
                       <input
@@ -2313,11 +2258,11 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       </div>
 
                       <p className="mt-3 text-xs font-bold text-slate-800">
-                        Take a photo
+                        <T k="takePhoto" />
                       </p>
 
                       <p className="mt-1 text-[10px] text-slate-400">
-                        Use your camera
+                        <T k="useCamera" />
                       </p>
 
                       <input
@@ -2339,17 +2284,15 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <label className="group cursor-pointer rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center transition hover:border-slate-500 hover:bg-slate-100">
                       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm">
-                        <span className="text-xs font-bold">
-                          REC
-                        </span>
+                        <span className="text-xs font-bold"><T k="rec" /></span>
                       </div>
 
                       <p className="mt-3 text-xs font-bold text-slate-800">
-                        Record video
+                        <T k="recordVideo" />
                       </p>
 
                       <p className="mt-1 text-[10px] text-slate-400">
-                        Use your camera
+                        <T k="useCamera" />
                       </p>
 
                       <input
@@ -2370,19 +2313,17 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
                     <span>
-                      Up to 10 files
+                      <T k="upTo10" />
                     </span>
 
                     <span>•</span>
 
-                    <span>
-                      100 MB maximum per file
-                    </span>
+                    <span><T k="mbMaximum" /></span>
 
                     <span>•</span>
 
                     <span>
-                      Images & video supported
+                      <T k="imagesVideoSupported" />
                     </span>
                   </div>
 
@@ -2393,11 +2334,11 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                     <div className="mt-6">
                       <div className="mb-3 flex items-center justify-between">
                         <p className="text-xs font-bold text-slate-700">
-                          Selected evidence
+                          <T k="selectedEvidence" />
                         </p>
 
                         <p className="text-[10px] text-slate-400">
-                          Review before submitting
+                          <T k="reviewBeforeSubmit" />
                         </p>
                       </div>
 
@@ -2482,9 +2423,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                                     )
                                   }
                                   className="shrink-0 rounded-lg px-2.5 py-2 text-[10px] font-bold text-red-600 transition hover:bg-red-50"
-                                >
-                                  Remove
-                                </button>
+                                ><T k="remove" /></button>
                               </div>
                             </div>
                           )
@@ -2503,12 +2442,10 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
             <aside className="lg:sticky lg:top-24 lg:h-fit">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
-                    Before you submit
-                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400"><T k="beforeSubmit" /></p>
 
                   <h2 className="mt-2 text-lg font-bold text-slate-950">
-                    Review your report
+                    <T k="reviewReport" />
                   </h2>
                 </div>
 
@@ -2525,13 +2462,13 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <p className="text-xs font-bold text-slate-700">
-                        Reporting mode
+                        <T k="reportingMode" />
                       </p>
 
                       <p className="mt-0.5 text-[11px] text-slate-400">
                         {reportMode ===
                         "ANONYMOUS"
-                          ? "Anonymous"
+                          ? tu("anonymous")
                           : "Linked to your account"}
                       </p>
                     </div>
@@ -2554,7 +2491,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <p className="text-xs font-bold text-slate-700">
-                        Incident type
+                        <T k="incidentType" />
                       </p>
 
                       <p className="mt-0.5 text-[11px] text-slate-400">
@@ -2566,7 +2503,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                                 item.value ===
                                 incidentType
                             )?.label
-                          : "Not selected"}
+                          : tu("notSelected")}
                       </p>
                     </div>
                   </div>
@@ -2598,7 +2535,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <p className="text-xs font-bold text-slate-700">
-                        Description
+                        <T k="description" />
                       </p>
 
                       <p className="mt-0.5 text-[11px] text-slate-400">
@@ -2635,7 +2572,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <p className="text-xs font-bold text-slate-700">
-                        Location
+                        <T k="location" />
                       </p>
 
                       <p className="mt-0.5 text-[11px] text-slate-400">
@@ -2643,7 +2580,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                         quarter.trim() &&
                         deviceLocation
                           ? `${town}, ${quarter} · GPS ready`
-                          : "Location information incomplete"}
+                          : tu("locationIncomplete")}
                       </p>
                     </div>
                   </div>
@@ -2667,7 +2604,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                     <div>
                       <p className="text-xs font-bold text-slate-700">
-                        Evidence
+                        <T k="evidenceFiles" />
                       </p>
 
                       <p className="mt-0.5 text-[11px] text-slate-400">
@@ -2679,7 +2616,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                                 ? ""
                                 : "s"
                             } attached`
-                          : "At least one file required"}
+                          : tu("oneFileRequired")}
                       </p>
                     </div>
                   </div>
@@ -2689,23 +2626,13 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
 
                 <div className="border-t border-slate-100 p-5">
                   <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-[11px] font-semibold leading-5 text-amber-800">
-                      Only submit genuine incidents.
-                      False reports can delay
-                      assistance and affect people
-                      who need help.
-                    </p>
+                    <p className="text-[11px] font-semibold leading-5 text-amber-800"><T k="onlyGenuine" /></p>
                   </div>
 
                   {reportMode ===
                     "ANONYMOUS" && (
                     <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-[11px] leading-5 text-slate-600">
-                        This report will be submitted
-                        without your account identity.
-                        Keep your report reference after
-                        submission.
-                      </p>
+                      <p className="text-[11px] leading-5 text-slate-600"><T k="anonymousReference" /></p>
                     </div>
                   )}
 
@@ -2722,18 +2649,18 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-white" />
 
-                        Submitting report...
+                        <T k="submittingReport" />
                       </>
                     ) : !deviceLocation ? (
                       <>
-                        Waiting for location...
+                        <T k="waitingLocation" />
                       </>
                     ) : (
                       <>
                         {reportMode ===
                         "ANONYMOUS"
-                          ? "Submit anonymously"
-                          : "Submit incident"}
+                          ? tu("submitAnonymously")
+                          : tu("submitIncident")}
 
                         <span className="transition-transform group-hover:translate-x-0.5">
                           →
@@ -2742,11 +2669,7 @@ async function requestFreshLocation(): Promise<DeviceLocation> {
                     )}
                   </button>
 
-                  <p className="mt-3 text-center text-[10px] leading-4 text-slate-400">
-                    Your evidence will be securely
-                    uploaded before the report is
-                    submitted.
-                  </p>
+                  <p className="mt-3 text-center text-[10px] leading-4 text-slate-400"><T k="evidenceSecure" /></p>
                 </div>
               </div>
             </aside>

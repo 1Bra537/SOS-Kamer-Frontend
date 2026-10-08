@@ -1,5 +1,7 @@
 "use client";
 
+import T from "../../../components/T";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -13,32 +15,24 @@ import {
 import SignOutButton from "../../../components/SignOutButton";
 
 const STATUS_STEPS = [
-  {
-    status: "NEW",
-    title: "Report received",
-    description: "Your report has been submitted to SOS-Kamer.",
-  },
-  {
-    status: "ACKNOWLEDGED",
-    title: "Under review",
-    description: "An authorized responder has acknowledged the report.",
-  },
-  {
-    status: "RESOLVED",
-    title: "Resolved",
-    description: "The response team has marked the incident as resolved.",
-  },
+  { status: "NEW", titleKey: "reportReceived", descriptionKey: "statusSubmittedDesc" },
+  { status: "ACKNOWLEDGED", titleKey: "underReview", descriptionKey: "statusAckDesc" },
+  { status: "RESOLVED", titleKey: "resolved", descriptionKey: "statusResolvedDesc" },
 ];
 
-function formatIncidentType(type: string) {
-  return type
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+function formatIncidentType(type: string, t: (key: string) => string) {
+  switch (type) {
+    case "CHILD_ABUSE": return t("childAbuse");
+    case "FIGHT": return t("fight");
+    case "THEFT": return t("theft");
+    case "RAPE": return t("rape");
+    case "OTHER": return t("other");
+    default: return type.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+  }
 }
 
-function formatDate(dateString?: string) {
-  if (!dateString) return "Unknown";
+function formatDate(dateString: string | undefined, locale: string, unknownText: string) {
+  if (!dateString) return unknownText;
 
   const date = new Date(dateString);
 
@@ -46,7 +40,7 @@ function formatDate(dateString?: string) {
     return dateString;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -65,8 +59,12 @@ function statusIndex(status: string) {
 
 function Timeline({
   report,
+  t,
+  locale,
 }: {
   report: CitizenReport;
+  t: (key: string, values?: any) => string;
+  locale: string;
 }) {
   const history = report.statusHistory || [];
 
@@ -74,7 +72,7 @@ function Timeline({
     <div className="space-y-0">
       {history.length === 0 ? (
         <p className="text-sm text-slate-500">
-          No activity has been recorded yet.
+          {t("noActivity")}
         </p>
       ) : (
         history.map((event, index) => (
@@ -93,16 +91,16 @@ function Timeline({
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-900">
                 {event.status === "NEW"
-                  ? "Report submitted"
+                  ? t("submitted")
                   : event.status === "ACKNOWLEDGED"
-                    ? "Report acknowledged"
+                    ? t("acknowledged")
                     : event.status === "RESOLVED"
-                      ? "Incident resolved"
+                      ? t("resolved")
                       : event.status.replaceAll("_", " ")}
               </p>
 
               <p className="mt-1 text-xs text-slate-500">
-                {event.actor} · {formatDate(event.timestamp)}
+                {event.actor} · {formatDate(event.timestamp, locale, t("unknown"))}
               </p>
             </div>
           </div>
@@ -114,8 +112,10 @@ function Timeline({
 
 function StatusTracker({
   status,
+  t,
 }: {
   status: string;
+  t: (key: string, values?: any) => string;
 }) {
   const currentIndex = statusIndex(status);
 
@@ -149,7 +149,7 @@ function StatusTracker({
                       : "text-slate-400"
                   }`}
                 >
-                  {step.title}
+                  {t(step.status === "NEW" ? "submitted" : step.status === "ACKNOWLEDGED" ? "underReview" : "resolved")}
                 </p>
               </div>
 
@@ -197,11 +197,11 @@ function StatusTracker({
                       : "text-slate-400"
                   }`}
                 >
-                  {step.title}
+                  {t(step.status === "NEW" ? "submitted" : step.status === "ACKNOWLEDGED" ? "underReview" : "resolved")}
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {step.description}
+                  {t(step.status === "NEW" ? "statusDescriptionNew" : step.status === "ACKNOWLEDGED" ? "statusDescriptionAcknowledged" : "statusDescriptionResolved")}
                 </p>
               </div>
             </div>
@@ -213,6 +213,9 @@ function StatusTracker({
 }
 
 export default function ReportDetailsPage() {
+  const tu = useTranslations("ui");
+  const t = useTranslations("detail");
+  const locale = useLocale();
   const router = useRouter();
   const params = useParams<{ reportId: string }>();
 
@@ -270,11 +273,11 @@ export default function ReportDetailsPage() {
 
     switch (report.status) {
       case "NEW":
-        return "Report received";
+        return tu("reportReceived");
       case "ACKNOWLEDGED":
-        return "Under review";
+        return tu("underReview");
       case "RESOLVED":
-        return "Resolved";
+        return t("resolved");
       default:
         return report.status.replaceAll("_", " ");
     }
@@ -298,7 +301,7 @@ export default function ReportDetailsPage() {
               </p>
 
               <p className="hidden text-[10px] font-medium text-slate-400 sm:block">
-                Citizen Reporting
+                <T k="citizenReporting" />
               </p>
             </div>
           </Link>
@@ -308,7 +311,7 @@ export default function ReportDetailsPage() {
               href="/reports"
               className="rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
-              ← Home
+              {t("home")}
             </Link>
 
             <SignOutButton />
@@ -328,7 +331,7 @@ export default function ReportDetailsPage() {
         {!loading && error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
             <p className="text-sm font-bold text-red-800">
-              Report unavailable
+              {t("unavailable")}
             </p>
 
             <p className="mt-2 text-sm leading-6 text-red-700">
@@ -339,7 +342,7 @@ export default function ReportDetailsPage() {
               href="/reports"
               className="mt-5 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white"
             >
-              Back to my reports
+              {t("backReports")}
             </Link>
           </div>
         )}
@@ -351,7 +354,7 @@ export default function ReportDetailsPage() {
                 href="/reports"
                 className="text-xs font-bold text-slate-500 hover:text-slate-900"
               >
-                ← Back to my reports
+                ← {t("backReports")}
               </Link>
             </div>
 
@@ -359,17 +362,17 @@ export default function ReportDetailsPage() {
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">
-                    Incident tracking
+                    {t("tracking")}
                   </p>
 
                   <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-                    {formatIncidentType(report.incidentType)}
+                    {formatIncidentType(report.incidentType, t)}
                   </h1>
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Current status
+                    {t("currentStatus")}
                   </p>
 
                   <p className="mt-1 text-sm font-bold text-slate-900">
@@ -381,17 +384,17 @@ export default function ReportDetailsPage() {
               <div className="mt-8 grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Submitted
+                    <T k="submitted" />
                   </p>
 
                   <p className="mt-1 text-sm font-semibold text-slate-700">
-                    {formatDate(report.createdAt)}
+                    {formatDate(report.createdAt, locale, tu("unknown"))}
                   </p>
                 </div>
 
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Location
+                    {tu("location")}
                   </p>
 
                   <p className="mt-1 text-sm font-semibold text-slate-700">
@@ -401,7 +404,7 @@ export default function ReportDetailsPage() {
 
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Evidence
+                    {tu("evidence")}
                   </p>
 
                   <p className="mt-1 text-sm font-semibold text-slate-700">
@@ -412,14 +415,12 @@ export default function ReportDetailsPage() {
 
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Last update
+                    {t("lastUpdate")}
                   </p>
 
                   <p className="mt-1 text-sm font-semibold text-slate-700">
-                    {formatDate(
-                      report.updatedAt ||
-                        report.createdAt
-                    )}
+                    {formatDate(report.updatedAt ||
+                        report.createdAt, locale, tu("unknown"))}
                   </p>
                 </div>
               </div>
@@ -428,41 +429,41 @@ export default function ReportDetailsPage() {
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Progress
+                  {t("progress")}
                 </p>
 
                 <h2 className="mt-1 text-lg font-bold">
-                  Follow your report
+                  {t("follow")}
                 </h2>
               </div>
 
               <div className="mt-8">
-                <StatusTracker status={report.status} />
+                <StatusTracker status={report.status} t={t} />
               </div>
             </div>
 
             <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Activity
+                  {t("activity")}
                 </p>
 
                 <h2 className="mt-1 text-lg font-bold">
-                  Report timeline
+                  {t("timeline")}
                 </h2>
 
                 <div className="mt-7">
-                  <Timeline report={report} />
+                  <Timeline report={report} t={t} locale={locale} />
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Your report
+                  <T k="detailYourReport" />
                 </p>
 
                 <h2 className="mt-1 text-lg font-bold">
-                  Incident details
+                  {t("details")}
                 </h2>
 
                 {isVoiceReport ? (
@@ -492,11 +493,11 @@ export default function ReportDetailsPage() {
 
                       <div>
                         <p className="text-sm font-bold text-slate-900">
-                          Voice description
+                          {t("voice")}
                         </p>
 
                         <p className="mt-1 text-xs text-slate-500">
-                          Your recorded incident description
+                          {t("voiceHelp")}
                         </p>
                       </div>
                     </div>
@@ -508,13 +509,12 @@ export default function ReportDetailsPage() {
                         preload="metadata"
                         src={report.audioUrl}
                       >
-                        Your browser does not support audio playback.
+                        <T k="audioPlaybackUnsupported" />
                       </audio>
                     ) : (
                       <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
                         <p className="text-xs leading-5 text-amber-700">
-                          The voice recording is currently unavailable.
-                          Please try refreshing the report later.
+                          <T k="voiceUnavailable" />
                         </p>
                       </div>
                     )}
@@ -528,12 +528,12 @@ export default function ReportDetailsPage() {
                 {report.resolvedAt && (
                   <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <p className="text-xs font-bold text-emerald-800">
-                      Incident resolved
+                      {t("resolvedTitle")}
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-emerald-700">
-                      This report was marked resolved on{" "}
-                      {formatDate(report.resolvedAt)}.
+                      {t("resolvedText", {date: formatDate(report.resolvedAt, locale, tu("unknown"))})}{" "}
+                      {formatDate(report.resolvedAt, locale, tu("unknown"))}.
                     </p>
                   </div>
                 )}
@@ -542,18 +542,18 @@ export default function ReportDetailsPage() {
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
               <p className="text-sm font-bold text-slate-900">
-                Need to report another incident?
+                {t("another")}
               </p>
 
               <p className="mt-1 text-xs text-slate-500">
-                Submit a new report and it will appear in My Reports.
+                {t("anotherHelp")}
               </p>
 
               <Link
                 href="/report"
                 className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-red-600 px-5 text-xs font-bold text-white transition hover:bg-red-500"
               >
-                Report an incident
+                {t("reportIncident")}
               </Link>
             </div>
           </>

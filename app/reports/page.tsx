@@ -1,5 +1,7 @@
 "use client";
 
+import T from "../../components/T";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,22 +15,26 @@ import {
 import SignOutButton from "../../components/SignOutButton";
 
 
-function formatIncidentType(type: string) {
-  return type
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+function formatIncidentType(type: string, t: (key: string) => string) {
+  switch (type) {
+    case "CHILD_ABUSE": return t("childAbuse");
+    case "FIGHT": return t("fight");
+    case "THEFT": return t("theft");
+    case "RAPE": return t("rape");
+    case "OTHER": return t("other");
+    default: return type.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+  }
 }
 
 
-function formatStatus(status: string) {
+function formatStatus(status: string, t: (key: string) => string) {
   switch (status) {
     case "NEW":
-      return "Report received";
+      return t("reportReceived");
     case "ACKNOWLEDGED":
-      return "Under review";
+      return t("underReview");
     case "RESOLVED":
-      return "Resolved";
+      return t("resolved");
     default:
       return status
         .replaceAll("_", " ")
@@ -38,8 +44,8 @@ function formatStatus(status: string) {
 }
 
 
-function formatDate(dateString?: string) {
-  if (!dateString) return "Unknown";
+function formatDate(dateString: string | undefined, locale: string, unknownText: string) {
+  if (!dateString) return unknownText;
 
   const date = new Date(dateString);
 
@@ -47,7 +53,7 @@ function formatDate(dateString?: string) {
     return dateString;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -57,7 +63,7 @@ function formatDate(dateString?: string) {
 }
 
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, t }: { status: string; t: (key: string) => string }) {
   const resolved = status === "RESOLVED";
   const acknowledged = status === "ACKNOWLEDGED";
 
@@ -78,25 +84,25 @@ function StatusBadge({ status }: { status: string }) {
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${classes}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {formatStatus(status)}
+      {formatStatus(status, t)}
     </span>
   );
 }
 
 
-function ReportCard({ report }: { report: CitizenReport }) {
+function ReportCard({ report, t, locale }: { report: CitizenReport; t: (key: string) => string; locale: string }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700">
-              {formatIncidentType(report.incidentType)}
+              {formatIncidentType(report.incidentType, t)}
             </span>
 
             {report.incidentType === "CHILD_ABUSE" && (
               <span className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                Critical
+                {t("critical")}
               </span>
             )}
           </div>
@@ -111,14 +117,14 @@ function ReportCard({ report }: { report: CitizenReport }) {
         </div>
 
         <div className="shrink-0">
-          <StatusBadge status={report.status} />
+          <StatusBadge status={report.status} t={t} />
         </div>
       </div>
 
       <div className="mt-5 grid gap-3 border-t border-slate-100 pt-5 text-xs text-slate-500 sm:grid-cols-3">
         <div>
           <p className="font-bold uppercase tracking-wider text-slate-400">
-            Location
+            {t("location")}
           </p>
           <p className="mt-1 font-semibold text-slate-700">
             {report.quarter}, {report.town}
@@ -127,16 +133,16 @@ function ReportCard({ report }: { report: CitizenReport }) {
 
         <div>
           <p className="font-bold uppercase tracking-wider text-slate-400">
-            Submitted
+            {t("submitted")}
           </p>
           <p className="mt-1 font-semibold text-slate-700">
-            {formatDate(report.createdAt)}
+            {formatDate(report.createdAt, locale, t("unknown"))}
           </p>
         </div>
 
         <div>
           <p className="font-bold uppercase tracking-wider text-slate-400">
-            Evidence
+            {t("evidence")}
           </p>
           <p className="mt-1 font-semibold text-slate-700">
             {report.evidenceCount} file
@@ -149,7 +155,7 @@ function ReportCard({ report }: { report: CitizenReport }) {
         href={`/reports/${encodeURIComponent(report.reportId)}`}
         className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-slate-950 px-5 text-xs font-bold text-white transition hover:bg-slate-800 sm:w-auto"
       >
-        Track this report →
+        {t("track")}
       </Link>
     </article>
   );
@@ -157,6 +163,10 @@ function ReportCard({ report }: { report: CitizenReport }) {
 
 
 export default function MyReportsPage() {
+  const tu = useTranslations("ui");
+  const locale = useLocale();
+  const t = useTranslations("reports");
+  const tc = useTranslations("common");
   const router = useRouter();
 
   const [reports, setReports] = useState<CitizenReport[]>([]);
@@ -192,7 +202,7 @@ export default function MyReportsPage() {
         console.error(err);
         setError(
           err?.message ||
-            "Unable to load your reports. Please try again."
+            t("loadError")
         );
       } finally {
         setLoading(false);
@@ -228,7 +238,7 @@ export default function MyReportsPage() {
                 SOS<span className="text-red-600">-Kamer</span>
               </p>
               <p className="hidden text-[10px] font-medium text-slate-400 sm:block">
-                Citizen Reporting
+                {tu("citizenReporting")}
               </p>
             </div>
           </Link>
@@ -238,7 +248,7 @@ export default function MyReportsPage() {
               href="/report"
               className="rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
-              Report incident
+              {t("reportIncident")}
             </Link>
             <SignOutButton />
           </div>
@@ -248,17 +258,16 @@ export default function MyReportsPage() {
       <section className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
         <div className="mb-8">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">
-            Citizen dashboard
+            {t("dashboard")}
           </p>
 
           <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                My reports
+                {t("title")}
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Follow every incident you have submitted and see when
-                the response team takes action.
+                {t("intro")}
               </p>
             </div>
 
@@ -267,7 +276,7 @@ export default function MyReportsPage() {
                 <span className="font-bold text-slate-900">
                   {reports.length}
                 </span>{" "}
-                report{reports.length === 1 ? "" : "s"}
+                {reports.length === 1 ? t("reportWord") : t("reportsWord")}
               </div>
             )}
           </div>
@@ -275,9 +284,9 @@ export default function MyReportsPage() {
 
         <div className="mb-6 flex flex-wrap gap-2">
           {[
-            ["ALL", "All reports"],
-            ["ACTIVE", "Active"],
-            ["RESOLVED", "Resolved"],
+            ["ALL", t("all")],
+            ["ACTIVE", tu("active")],
+            ["RESOLVED", tu("resolved")],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -310,7 +319,7 @@ export default function MyReportsPage() {
         {!loading && error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
             <p className="text-sm font-bold text-red-800">
-              Could not load your reports
+              {t("loadErrorTitle")}
             </p>
             <p className="mt-2 text-sm leading-6 text-red-700">
               {error}
@@ -320,7 +329,7 @@ export default function MyReportsPage() {
               onClick={() => window.location.reload()}
               className="mt-4 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white"
             >
-              Try again
+              {t("tryAgain")}
             </button>
           </div>
         )}
@@ -333,14 +342,14 @@ export default function MyReportsPage() {
 
             <h2 className="mt-5 text-lg font-bold text-slate-900">
               {reports.length === 0
-                ? "You have not submitted any reports yet"
-                : "No reports match this filter"}
+                ? tu("noReports")
+                : t("noFiltered")}
             </h2>
 
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               {reports.length === 0
-                ? "Once you submit an incident, it will appear here so you can track its progress."
-                : "Try another filter to see your other reports."}
+                ? t("noReportsHelp")
+                : t("noFilteredHelp")}
             </p>
 
             {reports.length === 0 && (
@@ -348,7 +357,7 @@ export default function MyReportsPage() {
                 href="/report"
                 className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-red-600 px-5 text-xs font-bold text-white"
               >
-                Report an incident
+                {t("reportNow")}
               </Link>
             )}
           </div>
@@ -360,6 +369,8 @@ export default function MyReportsPage() {
               <ReportCard
                 key={report.reportId}
                 report={report}
+                t={t}
+                locale={locale}
               />
             ))}
           </div>

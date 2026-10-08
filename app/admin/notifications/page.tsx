@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import T from "../../../components/T";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { configureAmplify } from "@/lib/amplify";
@@ -44,8 +46,8 @@ function formatIncidentType(type: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatDate(value?: string) {
-  if (!value) return "Unknown";
+function formatDate(value: string | undefined, locale: string, unknownText: string) {
+  if (!value) return unknownText;
 
   const date = new Date(value);
 
@@ -53,7 +55,7 @@ function formatDate(value?: string) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -63,6 +65,8 @@ function formatDate(value?: string) {
 }
 
 export default function AdminNotificationsPage() {
+  const tu = useTranslations("ui");
+  const locale = useLocale();
   const router = useRouter();
 
   const [notifications, setNotifications] =
@@ -120,7 +124,7 @@ export default function AdminNotificationsPage() {
 
       setError(
         err?.message ||
-          "Unable to load notifications."
+          tu("unableNotifications")
       );
     } finally {
       setLoading(false);
@@ -158,7 +162,7 @@ export default function AdminNotificationsPage() {
     } catch (err: any) {
       alert(
         err?.message ||
-          "Unable to acknowledge notification."
+          tu("unableAcknowledge")
       );
     } finally {
       setProcessingId("");
@@ -180,9 +184,7 @@ export default function AdminNotificationsPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
-        <p className="text-sm text-slate-300">
-          Loading notifications...
-        </p>
+        <p className="text-sm text-slate-300"><T k="loadingNotifications" /></p>
       </main>
     );
   }
@@ -197,7 +199,7 @@ export default function AdminNotificationsPage() {
             </p>
 
             <p className="text-xs font-medium text-slate-500">
-              Administrator notifications
+              <T k="notificationsAdmin" />
             </p>
           </div>
 
@@ -214,12 +216,12 @@ export default function AdminNotificationsPage() {
               }
               className="mb-4 text-xs font-semibold text-slate-500 hover:text-slate-950"
             >
-              ← Back to dashboard
+              <T k="backDashboard" />
             </button>
 
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-                Notifications
+                <T k="notifications" />
               </h1>
 
               <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
@@ -227,18 +229,14 @@ export default function AdminNotificationsPage() {
               </span>
             </div>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Review incoming incident alerts
-              and acknowledge them when they
-              enter active response.
-            </p>
+            <p className="mt-2 text-sm text-slate-500"><T k="reviewAlerts" /></p>
           </div>
 
           <button
             onClick={load}
             className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
           >
-            ↻ Refresh
+            <T k="refresh" />
           </button>
         </div>
 
@@ -256,11 +254,11 @@ export default function AdminNotificationsPage() {
               </div>
 
               <p className="text-sm font-semibold text-slate-700">
-                No notifications
+                <T k="noNotifications" />
               </p>
 
               <p className="mt-1 text-xs text-slate-400">
-                Everything is up to date.
+                <T k="upToDate" />
               </p>
             </div>
           ) : (
@@ -288,17 +286,17 @@ export default function AdminNotificationsPage() {
 
                           {notification.isAnonymous && (
                             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                              Anonymous
+                              <T k="anonymous" />
                             </span>
                           )}
 
                           {pending ? (
                             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                              Needs attention
+                              <T k="needsAttention" />
                             </span>
                           ) : (
                             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                              Acknowledged
+                              <T k="acknowledged" />
                             </span>
                           )}
                         </div>
@@ -307,13 +305,13 @@ export default function AdminNotificationsPage() {
                           {notification.description ||
                             (notification.descriptionType ===
                             "VOICE"
-                              ? "Voice description attached"
-                              : "No description provided")}
+                              ? tu("voiceAttached")
+                              : tu("noDescriptionProvided"))}
                         </p>
 
                         <p className="mt-1 text-xs text-slate-500">
                           {notification.town ||
-                            "Unknown town"}{" "}
+                            tu("unknownTown")}{" "}
                           ·{" "}
                           {notification.quarter ||
                             "Unknown quarter"}
@@ -327,9 +325,7 @@ export default function AdminNotificationsPage() {
                             }
                           </span>{" "}
                           ·{" "}
-                          {formatDate(
-                            notification.createdAt
-                          )}
+                          {formatDate(notification.createdAt, locale, tu("unknown"))}
                         </p>
                       </div>
 
@@ -343,9 +339,7 @@ export default function AdminNotificationsPage() {
                             )
                           }
                           className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          View report
-                        </button>
+                        ><T k="viewReport" /></button>
 
                         {pending ? (
                           <button
@@ -367,7 +361,7 @@ export default function AdminNotificationsPage() {
                           </button>
                         ) : (
                           <span className="px-2 py-2.5 text-xs font-semibold text-emerald-600">
-                            ✓ Acknowledged
+                            <T k="acknowledge" />
                           </span>
                         )}
                       </div>

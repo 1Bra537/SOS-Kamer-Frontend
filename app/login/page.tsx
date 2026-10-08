@@ -1,5 +1,8 @@
 "use client";
 
+import T from "../../components/T";
+import { useTranslations } from "next-intl";
+
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,7 +15,12 @@ import "aws-amplify/auth/enable-oauth-listener";
 import { configureAmplify } from "../../lib/amplify";
 import { getUserRole, signOutUser } from "../../lib/auth";
 
+
 export default function LoginPage() {
+  const t = useTranslations("login");
+  const tu = useTranslations("ui");
+
+  const tc = useTranslations("common");
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -45,7 +53,7 @@ async function handleGoogleSignIn() {
     console.error("Google sign-in failed:", err);
 
     setError(
-      err?.message || "Could not continue with Google."
+      err?.message || t("googleError")
     );
 
     setGoogleLoading(false);
@@ -119,10 +127,10 @@ async function handleGoogleSignIn() {
       await signOutUser();
 
       setError(
-        "Your account is authenticated but has not been assigned to an SOS-Kamer user group."
+        t("groupError")
       );
     } catch (err: any) {
-      setError(err?.message || "Could not sign in.");
+      setError(err?.message || t("signInError"));
     } finally {
       setLoading(false);
     }
@@ -141,7 +149,7 @@ async function handleGoogleSignIn() {
 
       router.refresh();
     } catch (err: any) {
-      setError(err?.message || "Could not sign out.");
+      setError(err?.message || t("signOutError"));
     } finally {
       setSigningOut(false);
     }
@@ -157,7 +165,7 @@ async function handleGoogleSignIn() {
 
           <div className="mt-5 flex items-center gap-2 text-xs font-medium text-slate-500">
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-            Checking your session...
+            {t("checking")}
           </div>
         </div>
       </main>
@@ -185,7 +193,7 @@ async function handleGoogleSignIn() {
               </p>
 
               <p className="text-[10px] font-medium text-slate-400">
-                Faster Emergency Connections
+                {tc("tagline")}
               </p>
             </div>
           </Link>
@@ -199,15 +207,15 @@ async function handleGoogleSignIn() {
 
             <div className="mb-7">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">
-                Citizen access
+                {t("access")}
               </p>
 
               <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-[27px]">
-                Welcome back
+                {t("welcome")}
               </h1>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Sign in to continue reporting an incident.
+                {t("intro")}
               </p>
             </div>
 
@@ -230,7 +238,7 @@ async function handleGoogleSignIn() {
             {signedIn && (
               <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-xs font-semibold leading-5 text-amber-800">
-                  You already have an active SOS-Kamer session.
+                  {t("activeSession")}
                 </p>
 
                 <button
@@ -239,7 +247,7 @@ async function handleGoogleSignIn() {
                   disabled={signingOut}
                   className="mt-3 h-9 rounded-lg bg-amber-500 px-4 text-xs font-bold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {signingOut ? "Signing out..." : "Sign out"}
+                  {signingOut ? tc("signingOut") : tc("signOut")}
                 </button>
               </div>
             )}
@@ -255,7 +263,7 @@ async function handleGoogleSignIn() {
   {googleLoading ? (
     <>
       <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />
-      Connecting to Google...
+      {t("googleConnecting")}
     </>
   ) : (
     <>
@@ -284,7 +292,7 @@ async function handleGoogleSignIn() {
         </svg>
       </span>
 
-      Continue with Google
+      {t("continueGoogle")}
     </>
   )}
 </button>
@@ -296,7 +304,7 @@ async function handleGoogleSignIn() {
 
   <div className="relative flex justify-center">
     <span className="bg-white px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-      Or continue with email
+      {t("orEmail")}
     </span>
   </div>
 </div>
@@ -315,7 +323,7 @@ async function handleGoogleSignIn() {
                   htmlFor="email"
                   className="mb-2 block text-xs font-bold text-slate-600"
                 >
-                  Email address
+                  {t("email")}
                 </label>
 
                 <input
@@ -338,7 +346,7 @@ async function handleGoogleSignIn() {
                     htmlFor="password"
                     className="block text-xs font-bold text-slate-600"
                   >
-                    Password
+                    {t("password")}
                   </label>
                 </div>
 
@@ -359,7 +367,7 @@ async function handleGoogleSignIn() {
                     onClick={() => setShowPassword((current) => !current)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                   >
-                    {showPassword ? "Hide" : "Show"}
+                    {showPassword ? t("hide") : t("show")}
                   </button>
                 </div>
               </div>
@@ -374,12 +382,10 @@ async function handleGoogleSignIn() {
                 {loading ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-white" />
-                    Signing in...
+                    {t("signingIn")}
                   </>
                 ) : (
-                  <>
-                    Sign in
-                    <span className="transition-transform group-hover:translate-x-0.5">
+                  <><T k="signInButton" /><span className="transition-transform group-hover:translate-x-0.5">
                       →
                     </span>
                   </>
@@ -393,12 +399,12 @@ async function handleGoogleSignIn() {
 
           <div className="border-t border-slate-100 bg-slate-50 px-6 py-5 text-center sm:px-8">
             <p className="text-xs text-slate-500">
-              Don't have an account?{" "}
+              {t("dontHave")}{" "}
               <Link
                 href="/signup"
                 className="font-bold text-red-600 transition hover:text-red-700"
               >
-                Create one
+                {t("createOne")}
               </Link>
             </p>
           </div>
@@ -411,7 +417,7 @@ async function handleGoogleSignIn() {
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
 
           <p className="text-[10px] font-medium text-slate-400">
-            Building safer communities through faster, smarter, and more connected emergency response.
+            {t("building")}
           </p>
         </div>
 
@@ -420,7 +426,7 @@ async function handleGoogleSignIn() {
             href="/"
             className="text-[10px] font-semibold text-slate-400 transition hover:text-slate-700"
           >
-            ← Return home
+            {tu("returnHome")}
           </Link>
         </div> */}
 

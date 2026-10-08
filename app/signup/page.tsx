@@ -1,5 +1,8 @@
 "use client";
 
+import T from "../../components/T";
+import { useTranslations } from "next-intl";
+
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,7 +15,11 @@ import {
   import "aws-amplify/auth/enable-oauth-listener";
   import { getCurrentUser, signOut } from "aws-amplify/auth";
 
+const tu = useTranslations("ui");
+
 export default function SignupPage() {
+  const t = useTranslations("signup");
+  const tc = useTranslations("common");
   const router = useRouter();
 
 
@@ -45,7 +52,7 @@ async function handleGoogleSignUp() {
     console.error("Google sign-up failed:", err);
 
     setError(
-      err?.message || "Could not continue with Google."
+      err?.message || t("googleError")
     );
 
     setGoogleLoading(false);
@@ -87,7 +94,7 @@ async function handleGoogleSignUp() {
       }
     } catch (err: any) {
       setError(
-        err?.message || "Could not create account."
+        err?.message || t("createError")
       );
     } finally {
       setLoading(false);
@@ -116,7 +123,7 @@ async function handleGoogleSignUp() {
               </p>
 
               <p className="text-[10px] font-medium text-slate-400">
-                Faster Emergency Connections
+                {tc("tagline")}
               </p>
             </div>
           </Link>
@@ -135,17 +142,14 @@ async function handleGoogleSignUp() {
 
                 <div className="mb-7">
                   <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">
-                    Citizen registration
+                    {t("registration")}
                   </p>
 
                   <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-[27px]">
-                    Create your account
+                    {t("create")}
                   </h1>
 
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Set up your account to start reporting
-                    incidents securely.
-                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500"><T k="signupIntro" /></p>
                 </div>
 
                 {/* ERROR */}
@@ -174,7 +178,7 @@ async function handleGoogleSignUp() {
   {googleLoading ? (
     <>
       <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />
-      Connecting to Google...
+      {t("googleConnecting")}
     </>
   ) : (
     <>
@@ -203,7 +207,7 @@ async function handleGoogleSignUp() {
         </svg>
       </span>
 
-      Continue with Google
+      {t("continueGoogle")}
     </>
   )}
 </button>
@@ -215,7 +219,7 @@ async function handleGoogleSignUp() {
 
   <div className="relative flex justify-center">
     <span className="bg-white px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-      Or create with email
+      {t("orEmail")}
     </span>
   </div>
 </div>
@@ -234,7 +238,7 @@ async function handleGoogleSignUp() {
                       htmlFor="email"
                       className="mb-2 block text-xs font-bold text-slate-600"
                     >
-                      Email address
+                      {t("email")}
                     </label>
 
                     <input
@@ -258,7 +262,7 @@ async function handleGoogleSignUp() {
                       htmlFor="password"
                       className="mb-2 block text-xs font-bold text-slate-600"
                     >
-                      Create password
+                      {t("password")}
                     </label>
 
                     <div className="relative">
@@ -290,8 +294,8 @@ async function handleGoogleSignUp() {
                         className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                       >
                         {showPassword
-                          ? "Hide"
-                          : "Show"}
+                          ? t("hide")
+                          : t("show")}
                       </button>
                     </div>
 
@@ -312,8 +316,8 @@ async function handleGoogleSignUp() {
                         }`}
                       >
                         {password.length >= 8
-                          ? "Password length requirement met"
-                          : "Use at least 8 characters"}
+                          ? tu("passwordRequirement")
+                          : tu("passwordUse8")}
                       </p>
                     </div>
                   </div>
@@ -331,12 +335,10 @@ async function handleGoogleSignUp() {
                     {loading ? (
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-white" />
-                        Creating account...
+                        {t("creating")}
                       </>
                     ) : (
-                      <>
-                        Create account
-                        <span className="transition-transform group-hover:translate-x-0.5">
+                      <><T k="createAccountButton" /><span className="transition-transform group-hover:translate-x-0.5">
                           →
                         </span>
                       </>
@@ -351,12 +353,12 @@ async function handleGoogleSignUp() {
 
               <div className="border-t border-slate-100 bg-slate-50 px-6 py-5 text-center sm:px-8">
                 <p className="text-xs text-slate-500">
-                  Already registered?{" "}
+                  {t("already")}{" "}
                   <Link
                     href="/login"
                     className="font-bold text-red-600 transition hover:text-red-700"
                   >
-                    Sign in
+                    {t("signIn")}
                   </Link>
                 </p>
               </div>
@@ -378,15 +380,15 @@ async function handleGoogleSignUp() {
                   </div>
 
                   <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-600">
-                    Step 2 of 2 · Verification
+                    {t("verificationStep")}
                   </p>
 
                   <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-[27px]">
-                    Check your email
+                    {t("checkEmail")}
                   </h1>
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    We sent a verification code to{" "}
+                    {t("sentCode")}{" "}
                     <span className="font-semibold text-slate-800">
                       {email}
                     </span>
@@ -419,7 +421,7 @@ async function handleGoogleSignUp() {
                       htmlFor="code"
                       className="mb-2 block text-xs font-bold text-slate-600"
                     >
-                      Verification code
+                      {t("code")}
                     </label>
 
                     <input
@@ -431,14 +433,11 @@ async function handleGoogleSignUp() {
                       onChange={(e) =>
                         setCode(e.target.value)
                       }
-                      placeholder="Enter your code"
+                      placeholder={t("codePlaceholder")}
                       className="h-13 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-center text-lg font-bold tracking-[0.3em] text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:tracking-normal hover:border-slate-300 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
                     />
 
-                    <p className="mt-3 text-[10px] leading-5 text-slate-400">
-                      Enter the code exactly as it appears in
-                      your verification email.
-                    </p>
+                    <p className="mt-3 text-[10px] leading-5 text-slate-400"><T k="verificationEmail" /></p>
                   </div>
 
                   <button
@@ -449,11 +448,11 @@ async function handleGoogleSignUp() {
                     {loading ? (
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-t-white" />
-                        Verifying...
+                        {t("verifying")}
                       </>
                     ) : (
                       <>
-                        Verify email
+                        {t("verify")}
                         <span className="transition-transform group-hover:translate-x-0.5">
                           →
                         </span>
@@ -472,7 +471,7 @@ async function handleGoogleSignUp() {
                   }}
                   className="mt-5 w-full text-center text-xs font-semibold text-slate-400 transition hover:text-slate-700"
                 >
-                  ← Use a different email
+                  {t("different")}
                 </button>
 
               </div>
@@ -488,7 +487,7 @@ async function handleGoogleSignUp() {
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
 
           <p className="text-[10px] font-medium text-slate-400">
-            Building safer communities through faster, smarter, and more connected emergency response.
+            {t("building")}
           </p>
         </div>
 
@@ -497,7 +496,7 @@ async function handleGoogleSignUp() {
             href="/"
             className="text-[10px] font-semibold text-slate-400 transition hover:text-slate-700"
           >
-            ← Return home
+            {tu("returnHome")}
           </Link>
         </div> */}
 

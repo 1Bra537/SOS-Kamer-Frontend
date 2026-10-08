@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import T from "../../components/T";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { configureAmplify } from "@/lib/amplify";
@@ -51,22 +53,22 @@ const STATUS_OPTIONS = [
   "RESOLVED",
 ];
 
-function formatIncidentType(type: string) {
+function formatIncidentType(type: string, t: (key: string) => string) {
   switch (type) {
     case "CHILD_ABUSE":
-      return "Child Abuse";
+      return t("childAbuse");
 
     case "FIGHT":
-      return "Fight";
+      return t("fight");
 
     case "THEFT":
-      return "Theft";
+      return t("theft");
 
     case "RAPE":
-      return "rape";
+      return t("rape");
 
     case "OTHER":
-      return "Other";
+      return t("other");
 
     default:
       return type
@@ -78,28 +80,28 @@ function formatIncidentType(type: string) {
   }
 }
 
-function formatStatus(status: string) {
+function formatStatus(status: string, t: (key: string) => string) {
   switch (status) {
     case "NEW":
-      return "Active";
+      return t("active");
 
     case "RESOLVED":
-      return "Resolved";
+      return t("resolved");
 
     case "UNACKNOWLEDGED":
-      return "Needs attention";
+      return t("needsAttention");
 
     case "ACKNOWLEDGED":
-      return "Acknowledged";
+      return t("acknowledged");
 
     default:
       return status;
   }
 }
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string, locale: string, t: (key: string) => string) {
   if (!dateString) {
-    return "Unknown";
+    return t("unknown");
   }
 
   const date = new Date(dateString);
@@ -108,7 +110,7 @@ function formatDate(dateString: string) {
     return dateString;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -117,7 +119,7 @@ function formatDate(dateString: string) {
   }).format(date);
 }
 
-function formatRelativeTime(dateString: string) {
+function formatRelativeTime(dateString: string, locale: string, t: (key: string) => string) {
   if (!dateString) {
     return "";
   }
@@ -136,7 +138,7 @@ function formatRelativeTime(dateString: string) {
   );
 
   if (seconds < 60) {
-    return "Just now";
+    return t("justNow");
   }
 
   const minutes = Math.floor(
@@ -163,7 +165,7 @@ function formatRelativeTime(dateString: string) {
     return `${days}d ago`;
   }
 
-  return formatDate(dateString);
+  return formatDate(dateString, locale, t);
 }
 
 function StatusBadge({
@@ -175,7 +177,7 @@ function StatusBadge({
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        Resolved
+        <T k="resolved" />
       </span>
     );
   }
@@ -183,15 +185,17 @@ function StatusBadge({
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
       <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-      Active
+      <T k="active" />
     </span>
   );
 }
 
 function IncidentBadge({
   type,
+  t,
 }: {
   type: string;
+  t: (key: string) => string;
 }) {
   const isCritical =
     type === "CHILD_ABUSE";
@@ -204,7 +208,7 @@ function IncidentBadge({
           : "inline-flex rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700"
       }
     >
-      {formatIncidentType(type)}
+      {formatIncidentType(type, t)}
     </span>
   );
 }
@@ -228,6 +232,8 @@ function hasReportLocation(report: Report) {
 }
 
 function AdminDashboard() {
+  const tu = useTranslations("ui");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -385,7 +391,7 @@ function AdminDashboard() {
 
       setError(
         err?.message ||
-          "Unable to load administrator data."
+          tu("adminDataError")
       );
     } finally {
       setLoading(false);
@@ -427,7 +433,7 @@ function AdminDashboard() {
       setAnalytics(result);
     } catch (err) {
       console.error(
-        "Unable to load admin analytics",
+        tu("adminAnalyticsError"),
         err
       );
     } finally {
@@ -500,7 +506,7 @@ function AdminDashboard() {
 
       if (!result?.audioUrl) {
         throw new Error(
-          "No voice description URL was returned."
+          tu("noVoiceUrl")
         );
       }
 
@@ -515,7 +521,7 @@ function AdminDashboard() {
 
       alert(
         err?.message ||
-          "Unable to load the voice description."
+          tu("voiceLoadError")
       );
     } finally {
       setVoiceLoadingReportId("");
@@ -533,7 +539,7 @@ function AdminDashboard() {
         <div>
           <p className="line-clamp-2 text-sm leading-5 text-slate-600">
             {report.description ||
-              "No description provided."}
+              tu("noDescription")}
           </p>
         </div>
       );
@@ -559,12 +565,10 @@ function AdminDashboard() {
 
           <div className="min-w-0">
             <p className="text-xs font-bold text-violet-800">
-              Voice description
+              <T k="voiceDescription" />
             </p>
 
-            <p className="text-[10px] text-violet-600">
-              Audio message from citizen
-            </p>
+            <p className="text-[10px] text-violet-600"><T k="audioMessageCitizen" /></p>
           </div>
         </div>
 
@@ -575,10 +579,7 @@ function AdminDashboard() {
             controls
             preload="metadata"
             className="mt-3 w-full"
-          >
-            Your browser does not support
-            audio playback.
-          </audio>
+          ><T k="audioPlayback" /></audio>
         ) : (
           <button
             type="button"
@@ -598,7 +599,7 @@ function AdminDashboard() {
 
         {voiceError && (
           <p className="mt-2 text-[10px] font-medium text-red-600">
-            Unable to load the voice message.
+            <T k="voiceMessageError" />
           </p>
         )}
       </div>
@@ -627,7 +628,7 @@ function AdminDashboard() {
     } catch (err: any) {
       alert(
         err?.message ||
-          "Unable to download evidence."
+          tu("downloadError")
       );
     }
   }
@@ -653,7 +654,7 @@ function AdminDashboard() {
     } catch (err: any) {
       alert(
         err?.message ||
-          "Unable to generate the PDF report."
+          tu("pdfError")
       );
     } finally {
       setProcessingId("");
@@ -687,7 +688,7 @@ function AdminDashboard() {
     } catch (err: any) {
       alert(
         err?.message ||
-          "Unable to resolve this report."
+          tu("resolveError")
       );
     } finally {
       setProcessingId("");
@@ -913,24 +914,16 @@ function AdminDashboard() {
       if (
         sortOption === "type"
       ) {
-        return formatIncidentType(
-          a.incidentType
-        ).localeCompare(
-          formatIncidentType(
-            b.incidentType
-          )
+        return formatIncidentType(a.incidentType, tu).localeCompare(
+          formatIncidentType(b.incidentType, tu)
         );
       }
 
       if (
         sortOption === "status"
       ) {
-        return formatStatus(
-          a.status
-        ).localeCompare(
-          formatStatus(
-            b.status
-          )
+        return formatStatus(a.status, tu).localeCompare(
+          formatStatus(b.status, tu)
         );
       }
 
@@ -985,10 +978,7 @@ function AdminDashboard() {
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-red-500" />
 
-          <p className="text-sm font-medium text-slate-300">
-            Verifying administrator
-            access...
-          </p>
+          <p className="text-sm font-medium text-slate-300"><T k="verifyingAdmin" /></p>
 
           <p className="mt-1 text-xs text-slate-500">
             SOS-Kamer Incident Response
@@ -1023,7 +1013,7 @@ function AdminDashboard() {
               </p>
 
               <p className="text-xs font-medium text-slate-500">
-                Incident Response Console
+                <T k="incidentResponseConsole" />
               </p>
             </div>
 
@@ -1034,11 +1024,11 @@ function AdminDashboard() {
             <div className="hidden text-right sm:block">
 
               <p className="text-sm font-semibold text-slate-800">
-                Administrator
+                <T k="administrator" />
               </p>
 
               <p className="text-xs text-slate-500">
-                Operations Dashboard
+                <T k="operationsDashboard" />
               </p>
 
             </div>
@@ -1072,20 +1062,17 @@ function AdminDashboard() {
                 <span className="h-2 w-2 rounded-full bg-red-500" />
 
                 <span className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">
-                  Live Operations
+                  <T k="liveOperations" />
                 </span>
 
               </div>
 
               <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-                Incident Dashboard
+                <T k="incidentDashboard" />
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Monitor incoming reports,
-                review evidence, and manage
-                incident response from one
-                place.
+                <T k="dashboardIntro" />
               </p>
 
             </div>
@@ -1100,7 +1087,7 @@ function AdminDashboard() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100"
               >
-                 Notifications
+                 <T k="notifications" />
 
                 <span className="rounded-full bg-amber-700 px-2 py-0.5 text-[11px] font-bold text-white">
                   {notificationCount}
@@ -1120,14 +1107,14 @@ function AdminDashboard() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
               >
-                 Analytics
+                 <T k="analytics" />
               </button>
 
               <button
                 onClick={loadAdminData}
                 className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
-                ↻ Refresh data
+                <T k="refreshData" />
               </button>
 
             </div>
@@ -1150,7 +1137,7 @@ function AdminDashboard() {
             <div>
 
               <p className="font-semibold">
-                Dashboard error
+                <T k="dashboardError" />
               </p>
 
               <p className="mt-1">
@@ -1175,7 +1162,7 @@ function AdminDashboard() {
               <div>
 
                 <p className="text-sm font-medium text-slate-500">
-                  Active incidents
+                  <T k="activeIncidents" />
                 </p>
 
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
@@ -1191,7 +1178,7 @@ function AdminDashboard() {
             </div>
 
             <p className="mt-4 text-xs font-medium text-slate-400">
-              Reports requiring attention
+              <T k="reportsAttention" />
             </p>
 
           </div>
@@ -1203,7 +1190,7 @@ function AdminDashboard() {
               <div>
 
                 <p className="text-sm font-medium text-slate-500">
-                  Critical incidents
+                  <T k="criticalIncidents" />
                 </p>
 
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
@@ -1219,7 +1206,7 @@ function AdminDashboard() {
             </div>
 
             <p className="mt-4 text-xs font-medium text-red-600">
-              Active child-abuse reports
+              <T k="activeChildAbuse" />
             </p>
 
           </div>
@@ -1231,7 +1218,7 @@ function AdminDashboard() {
               <div>
 
                 <p className="text-sm font-medium text-slate-500">
-                  Needs attention
+                  <T k="needsAttention" />
                 </p>
 
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
@@ -1247,7 +1234,7 @@ function AdminDashboard() {
             </div>
 
             <p className="mt-4 text-xs font-medium text-slate-400">
-              Unacknowledged notifications
+              <T k="unacknowledgedNotifications" />
             </p>
 
           </div>
@@ -1259,7 +1246,7 @@ function AdminDashboard() {
               <div>
 
                 <p className="text-sm font-medium text-slate-500">
-                  Resolved incidents
+                  <T k="resolvedIncidents" />
                 </p>
 
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
@@ -1275,7 +1262,7 @@ function AdminDashboard() {
             </div>
 
             <p className="mt-4 text-xs font-medium text-slate-400">
-              Successfully closed reports
+              <T k="closedReports" />
             </p>
 
           </div>
@@ -1301,7 +1288,7 @@ function AdminDashboard() {
                   <span className="h-2 w-2 rounded-full bg-slate-900" />
 
                   <h2 className="text-sm font-bold text-slate-950">
-                    Evidence review
+                    <T k="evidenceReview" />
                   </h2>
 
                 </div>
@@ -1327,7 +1314,7 @@ function AdminDashboard() {
                   onClick={closeEvidence}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                 >
-                  Close preview
+                  <T k="closePreview" />
                 </button>
 
               )}
@@ -1342,7 +1329,7 @@ function AdminDashboard() {
                   <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
 
                   <p className="text-sm font-medium text-slate-500">
-                    Loading secure evidence...
+                    <T k="loadingSecureEvidence" />
                   </p>
 
                 </div>
@@ -1396,7 +1383,7 @@ function AdminDashboard() {
                         evidenceItems.length <=
                         1
                       }
-                      aria-label="Previous evidence"
+                      aria-label={tu("previousEvidence")}
                       className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       ←
@@ -1434,10 +1421,7 @@ function AdminDashboard() {
                           playsInline
                           preload="metadata"
                           className="max-h-[560px] w-full rounded-lg"
-                        >
-                          Your browser does not
-                          support video playback.
-                        </video>
+                        ><T k="videoPlayback" /></video>
 
                       )}
 
@@ -1451,7 +1435,7 @@ function AdminDashboard() {
                         evidenceItems.length <=
                         1
                       }
-                      aria-label="Next evidence"
+                      aria-label={tu("nextEvidence")}
                       className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       →
@@ -1463,7 +1447,7 @@ function AdminDashboard() {
 
                     <p className="text-xs font-medium text-slate-500">
                       {currentEvidence.contentType ||
-                        "Evidence file"}
+                        tu("evidenceFile")}
                     </p>
 
                     <p className="mt-1 break-all font-mono text-[10px] text-slate-400">
@@ -1480,7 +1464,7 @@ function AdminDashboard() {
                       }
                       className="mt-4 rounded-lg bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800"
                     >
-                      ↓ Download this evidence
+                      <T k="downloadEvidence" />
                     </button>
 
                   </div>
@@ -1509,7 +1493,7 @@ function AdminDashboard() {
                 <div className="flex items-center gap-2">
 
                   <h2 className="text-lg font-bold tracking-tight text-slate-950">
-                    Incident reports
+                    <T k="incidentReports" />
                   </h2>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
@@ -1538,7 +1522,7 @@ function AdminDashboard() {
                         event.target.value
                       )
                     }
-                    placeholder="Search reports..."
+                    placeholder={tu("searchReports")}
                     className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 sm:w-56"
                   />
 
@@ -1561,10 +1545,8 @@ function AdminDashboard() {
                         value={type}
                       >
                         {type === "ALL"
-                          ? "All types"
-                          : formatIncidentType(
-                              type
-                            )}
+                          ? tu("allTypes")
+                          : formatIncidentType(type, tu)}
                       </option>
                     )
                   )}
@@ -1582,15 +1564,15 @@ function AdminDashboard() {
                 >
 
                   <option value="ALL">
-                    All statuses
+                    <T k="allStatuses" />
                   </option>
 
                   <option value="NEW">
-                    Active
+                    <T k="active" />
                   </option>
 
                   <option value="RESOLVED">
-                    Resolved
+                    <T k="resolved" />
                   </option>
 
                 </select>
@@ -1607,19 +1589,19 @@ function AdminDashboard() {
                 >
 
                   <option value="newest">
-                    Newest first
+                    <T k="newestFirst" />
                   </option>
 
                   <option value="oldest">
-                    Oldest first
+                    <T k="oldestFirst" />
                   </option>
 
                   <option value="type">
-                    Sort by type
+                    <T k="sortType" />
                   </option>
 
                   <option value="status">
-                    Sort by status
+                    <T k="sortStatus" />
                   </option>
 
                 </select>
@@ -1639,13 +1621,10 @@ function AdminDashboard() {
               </div>
 
               <h3 className="text-sm font-bold text-slate-800">
-                No reports found
+                <T k="noReports" />
               </h3>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Try changing your search or
-                filters.
-              </p>
+              <p className="mt-1 text-sm text-slate-500"><T k="tryChangingFilters" /></p>
 
               {(searchQuery ||
                 typeFilter !== "ALL" ||
@@ -1661,7 +1640,7 @@ function AdminDashboard() {
                   }}
                   className="mt-4 text-sm font-semibold text-slate-900 underline underline-offset-4"
                 >
-                  Clear filters
+                  <T k="clearFilters" />
                 </button>
 
               )}
@@ -1683,19 +1662,19 @@ function AdminDashboard() {
                     <tr>
 
                       <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Incident
+                        <T k="incident" />
                       </th>
 
                       <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Location
+                        <T k="location" />
                       </th>
 
                       <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Description
+                        <T k="description" />
                       </th>
 
                       <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Reported
+                        <T k="reported" />
                       </th>
 
                       <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -1703,7 +1682,7 @@ function AdminDashboard() {
                       </th>
 
                       <th className="px-6 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Actions
+                        <T k="actions" />
                       </th>
 
                     </tr>
@@ -1739,6 +1718,7 @@ function AdminDashboard() {
                                   type={
                                     report.incidentType
                                   }
+                                  t={tu}
                                 />
 
                                 {report.descriptionType ===
@@ -1789,12 +1769,12 @@ function AdminDashboard() {
                                   {evidenceLoading &&
                                   selectedEvidenceReportId ===
                                     report.reportId
-                                    ? "Loading evidence..."
+                                    ? tu("loadingEvidence")
                                     : `${evidenceCount} evidence ${
                                         evidenceCount ===
                                         1
-                                          ? "file"
-                                          : "files"
+                                          ? tu("file")
+                                          : tu("files")
                                       }`}
                                 </button>
 
@@ -1805,15 +1785,11 @@ function AdminDashboard() {
                             <td className="px-6 py-4">
 
                               <p className="text-sm font-semibold text-slate-700">
-                                {formatRelativeTime(
-                                  report.createdAt
-                                )}
+                                {formatRelativeTime(report.createdAt, locale, tu)}
                               </p>
 
                               <p className="mt-0.5 text-xs text-slate-400">
-                                {formatDate(
-                                  report.createdAt
-                                )}
+                                {formatDate(report.createdAt, locale, tu)}
                               </p>
 
                             </td>
@@ -1848,7 +1824,7 @@ function AdminDashboard() {
                                     }
                                     className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
                                   >
-                                    View
+                                    <T k="view" />
                                   </button>
 
                                 )}
@@ -1869,7 +1845,7 @@ function AdminDashboard() {
                                     }
                                     className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100"
                                   >
-                                     Location
+                                     <T k="location" />
                                   </button>
                                 )}
 
@@ -1915,7 +1891,7 @@ function AdminDashboard() {
                                 ) : (
 
                                   <span className="px-3 py-2 text-xs font-semibold text-emerald-600">
-                                    Closed
+                                    <T k="closed" />
                                   </span>
 
                                 )}
@@ -1968,12 +1944,13 @@ function AdminDashboard() {
                               type={
                                 report.incidentType
                               }
+                              t={tu}
                             />
 
                             {report.descriptionType ===
                               "VOICE" && (
                               <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">
-                                 Voice description
+                                 <T k="voiceDescription" />
                               </span>
                             )}
 
@@ -2008,9 +1985,7 @@ function AdminDashboard() {
                         <div className="mt-3 flex items-center gap-3 text-xs text-slate-400">
 
                           <span>
-                            {formatRelativeTime(
-                              report.createdAt
-                            )}
+                            {formatRelativeTime(report.createdAt, locale, tu)}
                           </span>
 
                           {evidenceCount >
@@ -2054,7 +2029,7 @@ function AdminDashboard() {
                               }
                               className="flex-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                             >
-                               View location
+                               <T k="viewLocation" />
                             </button>
                           )}
 
@@ -2069,7 +2044,7 @@ function AdminDashboard() {
                               }
                               className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700"
                             >
-                              View evidence
+                              <T k="viewEvidence" />
                             </button>
 
                           )}
@@ -2089,7 +2064,7 @@ function AdminDashboard() {
                             {processingId ===
                             `pdf:${report.reportId}`
                               ? "PDF..."
-                              : "Download PDF"}
+                              : tu("downloadPdf")}
                           </button>
 
                           {report.status !==
@@ -2116,7 +2091,7 @@ function AdminDashboard() {
                           ) : (
 
                             <div className="flex flex-1 items-center justify-center rounded-lg bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700">
-                              Resolved
+                              <T k="resolved" />
                             </div>
 
                           )}
@@ -2155,26 +2130,22 @@ function AdminDashboard() {
                 <div className="flex items-center gap-2">
 
                   <span className="rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-300">
-                    Command Center
+                    <T k="commandCenter" />
                   </span>
 
                   {analyticsLoading && (
                     <span className="text-xs text-slate-400">
-                      Updating…
+                      <T k="updating" />
                     </span>
                   )}
 
                 </div>
 
                 <h2 className="mt-2 text-xl font-bold tracking-tight">
-                  Incident Analytics
+                  <T k="incidentAnalytics" />
                 </h2>
 
-                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300">
-                  Explore incident patterns by
-                  category, town, status, and
-                  reporting period.
-                </p>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300"><T k="explorePatterns" /></p>
 
               </div>
 
@@ -2189,7 +2160,7 @@ function AdminDashboard() {
               >
                 {analyticsLoading
                   ? "Refreshing…"
-                  : "↻ Refresh"}
+                  : tu("refresh")}
               </button>
 
             </div>
@@ -2205,7 +2176,7 @@ function AdminDashboard() {
                 <div className="min-w-0 flex-1">
 
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Incident type
+                    <T k="incidentType" />
                   </label>
 
                   <select
@@ -2222,27 +2193,27 @@ function AdminDashboard() {
                   >
 
                     <option value="ALL">
-                      All incidents
+                      <T k="allIncidents" />
                     </option>
 
                     <option value="CHILD_ABUSE">
-                      Child abuse
+                      <T k="childAbuse" />
                     </option>
 
                     <option value="FIGHT">
-                      Fight
+                      <T k="fight" />
                     </option>
 
                     <option value="RAPE">
-                      Rape
+                      <T k="rape" />
                     </option>
 
                     <option value="THEFT">
-                      Theft
+                      <T k="theft" />
                     </option>
 
                     <option value="OTHER">
-                      Other
+                      <T k="other" />
                     </option>
 
                   </select>
@@ -2252,7 +2223,7 @@ function AdminDashboard() {
                 <div className="min-w-0 flex-1">
 
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Town
+                    <T k="town" />
                   </label>
 
                   <select
@@ -2269,7 +2240,7 @@ function AdminDashboard() {
                   >
 
                     <option value="ALL">
-                      All towns
+                      <T k="allTowns" />
                     </option>
 
                     {Array.from(
@@ -2278,7 +2249,7 @@ function AdminDashboard() {
                           (r) =>
                             String(
                               r.town ||
-                                "Unknown"
+                                tu("unknown")
                             )
                         )
                       )
@@ -2319,23 +2290,21 @@ function AdminDashboard() {
                   >
 
                     <option value="ALL">
-                      All statuses
+                      <T k="allStatuses" />
                     </option>
 
-                    <option value="NEW">
-                      New
-                    </option>
+                    <option value="NEW"><T k="newStatus" /></option>
 
                     <option value="ACKNOWLEDGED">
-                      Acknowledged
+                      <T k="acknowledged" />
                     </option>
 
                     <option value="IN_PROGRESS">
-                      In progress
+                      <T k="inProgress" />
                     </option>
 
                     <option value="RESOLVED">
-                      Resolved
+                      <T k="resolved" />
                     </option>
 
                   </select>
@@ -2345,7 +2314,7 @@ function AdminDashboard() {
                 <div className="min-w-0 flex-1">
 
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Reporting period
+                    <T k="reportingPeriod" />
                   </label>
 
                   <select
@@ -2362,23 +2331,23 @@ function AdminDashboard() {
                   >
 
                     <option value="all">
-                      All time
+                      <T k="allTime" />
                     </option>
 
                     <option value="1">
-                      Last 24 hours
+                      <T k="last24" />
                     </option>
 
                     <option value="7">
-                      Last 7 days
+                      <T k="last7" />
                     </option>
 
                     <option value="30">
-                      Last 30 days
+                      <T k="last30" />
                     </option>
 
                     <option value="90">
-                      Last 90 days
+                      <T k="last90" />
                     </option>
 
                   </select>
@@ -2391,15 +2360,12 @@ function AdminDashboard() {
                   }
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
                 >
-                  Reset
+                  <T k="reset" />
                 </button>
 
               </div>
 
-              <p className="mt-3 text-[11px] text-slate-500">
-                Filters update the analytics
-                automatically.
-              </p>
+              <p className="mt-3 text-[11px] text-slate-500"><T k="filtersAuto" /></p>
 
             </div>
 
@@ -2407,7 +2373,7 @@ function AdminDashboard() {
             !analytics ? (
 
               <p className="py-10 text-center text-sm text-slate-500">
-                Loading analytics…
+                <T k="loadingAnalytics" />
               </p>
 
             ) : analytics ? (
@@ -2432,14 +2398,14 @@ function AdminDashboard() {
                       "!",
                     ],
                     [
-                      "Acknowledged",
+                      tu("acknowledged"),
                       analytics.summary
                         .acknowledgedReports,
                       "bg-amber-50 text-amber-700 border-amber-100",
                       "✓",
                     ],
                     [
-                      "Resolved",
+                      tu("resolved"),
                       analytics.summary
                         .resolvedReports,
                       "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -2494,13 +2460,10 @@ function AdminDashboard() {
                       <div>
 
                         <h3 className="text-sm font-bold text-slate-950">
-                          Incidents by type
+                          <T k="incidentsByType" />
                         </h3>
 
-                        <p className="mt-1 text-[11px] text-slate-500">
-                          Category distribution for
-                          the selected filters.
-                        </p>
+                        <p className="mt-1 text-[11px] text-slate-500"><T k="categoryDistribution" /></p>
 
                       </div>
 
@@ -2552,9 +2515,7 @@ function AdminDashboard() {
                                 <div className="mb-1.5 flex items-center justify-between text-xs">
 
                                   <span className="font-semibold text-slate-700">
-                                    {formatIncidentType(
-                                      item.type
-                                    )}
+                                    {formatIncidentType(item.type, tu)}
                                   </span>
 
                                   <span className="font-bold text-slate-950">
@@ -2593,10 +2554,7 @@ function AdminDashboard() {
 
                       ) : (
 
-                        <p className="py-8 text-center text-xs text-slate-400">
-                          No data for this
-                          selection.
-                        </p>
+                        <p className="py-8 text-center text-xs text-slate-400"><T k="noDataSelection" /></p>
 
                       )}
 
@@ -2609,13 +2567,10 @@ function AdminDashboard() {
                     <div>
 
                       <h3 className="text-sm font-bold text-slate-950">
-                        Status distribution
+                        <T k="statusDistribution" />
                       </h3>
 
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        Current operational state of
-                        the selected incidents.
-                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500"><T k="currentOperationalState" /></p>
 
                     </div>
 
@@ -2657,9 +2612,7 @@ function AdminDashboard() {
                             >
 
                               <p className="text-[10px] font-bold uppercase tracking-wide opacity-75">
-                                {formatStatus(
-                                  item.status
-                                )}
+                                {formatStatus(item.status, tu)}
                               </p>
 
                               <div className="mt-2 flex items-end justify-between">
@@ -2696,18 +2649,15 @@ function AdminDashboard() {
                       <div>
 
                         <h3 className="text-sm font-bold">
-                          Reports over time
+                          <T k="reportsOverTime" />
                         </h3>
 
-                        <p className="mt-1 text-[11px] text-slate-400">
-                          Daily incident volume under
-                          the active filters.
-                        </p>
+                        <p className="mt-1 text-[11px] text-slate-400"><T k="dailyVolume" /></p>
 
                       </div>
 
                       <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-slate-300">
-                        Daily
+                        <T k="daily" />
                       </span>
 
                     </div>
@@ -2779,10 +2729,7 @@ function AdminDashboard() {
 
                     ) : (
 
-                      <p className="py-16 text-center text-xs text-slate-500">
-                        No report activity for
-                        this selection.
-                      </p>
+                      <p className="py-16 text-center text-xs text-slate-500"><T k="noActivitySelection" /></p>
 
                     )}
 
@@ -2791,20 +2738,17 @@ function AdminDashboard() {
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
 
                     <h3 className="text-sm font-bold text-slate-950">
-                      Response performance
+                      <T k="responsePerformance" />
                     </h3>
 
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Average time from report
-                      creation to action.
-                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500"><T k="avgReportAction" /></p>
 
                     <div className="mt-5 space-y-4">
 
                       <div className="rounded-xl bg-blue-50 p-4">
 
                         <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">
-                          Acknowledgement
+                          <T k="acknowledgement" />
                         </p>
 
                         <p className="mt-1 text-2xl font-extrabold text-blue-950">
@@ -2812,7 +2756,7 @@ function AdminDashboard() {
                             1
                           )}{" "}
                           <span className="text-sm font-semibold">
-                            min
+                            <T k="min" />
                           </span>
                         </p>
 
@@ -2821,7 +2765,7 @@ function AdminDashboard() {
                       <div className="rounded-xl bg-violet-50 p-4">
 
                         <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">
-                          Resolution
+                          <T k="resolution" />
                         </p>
 
                         <p className="mt-1 text-2xl font-extrabold text-violet-950">
@@ -2829,7 +2773,7 @@ function AdminDashboard() {
                             1
                           )}{" "}
                           <span className="text-sm font-semibold">
-                            min
+                            <T k="min" />
                           </span>
                         </p>
 
@@ -2846,14 +2790,10 @@ function AdminDashboard() {
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
 
                     <h3 className="text-sm font-bold text-slate-950">
-                      Incidents by town
+                      <T k="incidentsByTown" />
                     </h3>
 
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Locations with the highest
-                      incident volume in this
-                      selection.
-                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500"><T k="locationsHighest" /></p>
 
                     <div className="mt-4 space-y-3">
 
@@ -2917,10 +2857,7 @@ function AdminDashboard() {
 
                       ) : (
 
-                        <p className="py-8 text-center text-xs text-slate-400">
-                          No town data for this
-                          selection.
-                        </p>
+                        <p className="py-8 text-center text-xs text-slate-400"><T k="noTownSelection" /></p>
 
                       )}
 
@@ -2931,13 +2868,10 @@ function AdminDashboard() {
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
 
                     <h3 className="text-sm font-bold text-slate-950">
-                      Active analysis
+                      <T k="activeAnalysis" />
                     </h3>
 
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      The dashboard is currently
-                      analysing:
-                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500"><T k="theDashboardAnalysing" /></p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
 
@@ -2945,34 +2879,30 @@ function AdminDashboard() {
                         {analyticsType ===
                         "ALL"
                           ? "All incident types"
-                          : formatIncidentType(
-                              analyticsType
-                            )}
+                          : formatIncidentType(analyticsType, tu)}
                       </span>
 
                       <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
                         {analyticsTown ===
                         "ALL"
-                          ? "All towns"
+                          ? tu("allTowns")
                           : analyticsTown}
                       </span>
 
                       <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
                         {analyticsStatus ===
                         "ALL"
-                          ? "All statuses"
-                          : formatStatus(
-                              analyticsStatus
-                            )}
+                          ? tu("allStatuses")
+                          : formatStatus(analyticsStatus, tu)}
                       </span>
 
                       <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
                         {analyticsPeriod ===
                         "all"
-                          ? "All time"
+                          ? tu("allTime")
                           : analyticsPeriod ===
                             "1"
-                          ? "Last 24 hours"
+                          ? tu("last24")
                           : `Last ${analyticsPeriod} days`}
                       </span>
 
@@ -2981,7 +2911,7 @@ function AdminDashboard() {
                     <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
 
                       <p className="text-xs font-semibold text-slate-700">
-                        Resolution rate
+                        <T k="resolutionRate" />
                       </p>
 
                       <div className="mt-2 flex items-center gap-3">
@@ -3039,10 +2969,7 @@ function AdminDashboard() {
 
             ) : (
 
-              <p className="py-10 text-center text-sm text-slate-400">
-                Analytics are currently
-                unavailable.
-              </p>
+              <p className="py-10 text-center text-sm text-slate-400"><T k="analyticsUnavailable" /></p>
 
             )}
 
@@ -3061,7 +2988,7 @@ function AdminDashboard() {
           </p>
 
           <p className="mt-1 text-[10px] text-slate-300">
-            Administrator console
+            <T k="adminConsole" />
           </p>
 
         </footer>
@@ -3073,6 +3000,7 @@ function AdminDashboard() {
 }
 
 export default function AdminPage() {
+  const tu = useTranslations("ui");
   return (
     <Suspense
       fallback={
@@ -3082,7 +3010,7 @@ export default function AdminPage() {
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-red-500" />
 
             <p className="text-sm font-medium text-slate-300">
-              Loading administrator dashboard...
+              <T k="loadingAdmin" />
             </p>
 
             <p className="mt-1 text-xs text-slate-500">

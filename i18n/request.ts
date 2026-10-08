@@ -11,14 +11,7 @@ function isSupportedLocale(value: string | undefined): value is SupportedLocale 
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
   const requestedLocale = cookieStore.get("sos-kamer-locale")?.value;
-  const locale = isSupportedLocale(requestedLocale)
-    ? requestedLocale
-    : "en";
-
+  const locale = isSupportedLocale(requestedLocale) ? requestedLocale : "en";
   const messages = (await import(`../messages/${locale}.json`)).default;
-
-  return {
-    locale,
-    messages,
-  };
+  return { locale, messages };
 });

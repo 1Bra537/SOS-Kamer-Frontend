@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import T from "../../../components/T";
 import dynamic from "next/dynamic";
 import {
   Suspense,
@@ -23,15 +25,15 @@ const IncidentLocationMap = dynamic(
     loading: () => (
       <div className="flex h-[420px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-100">
         <p className="text-sm font-medium text-slate-500">
-          Loading map...
+          <T k="loadingMap" />
         </p>
       </div>
     ),
   }
 );
 
-function formatDate(value?: string) {
-  if (!value) return "Unknown";
+function formatDate(value: string | undefined, locale: string, unknownText: string) {
+  if (!value) return unknownText;
 
   const date = new Date(value);
 
@@ -39,7 +41,7 @@ function formatDate(value?: string) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -70,6 +72,8 @@ function getCoordinates(report: AdminReport) {
 }
 
 function AdminLocationsContent() {
+  const tu = useTranslations("ui");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -175,7 +179,7 @@ function AdminLocationsContent() {
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-red-500" />
 
           <p className="text-sm font-medium text-slate-300">
-            Loading report locations...
+            <T k="loadingReportLocations" />
           </p>
         </div>
       </main>
@@ -190,22 +194,17 @@ function AdminLocationsContent() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                Incident Locations
+                <T k="incidentLocations" />
               </h1>
 
-              <p className="mt-2 text-sm text-slate-500">
-                View the GPS locations associated with
-                submitted incident reports.
-              </p>
+              <p className="mt-2 text-sm text-slate-500"><T k="viewGps" /></p>
             </div>
 
             <button
               type="button"
               onClick={() => router.push("/admin")}
               className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Back to Dashboard
-            </button>
+            ><T k="backDashboardPlain" /></button>
           </div>
         </div>
 
@@ -243,13 +242,10 @@ function AdminLocationsContent() {
             </div>
 
             <h2 className="text-lg font-bold text-slate-900">
-              No report locations available
+              <T k="noLocations" />
             </h2>
 
-            <p className="mt-2 text-sm text-slate-500">
-              No submitted reports currently contain
-              valid GPS coordinates.
-            </p>
+            <p className="mt-2 text-sm text-slate-500"><T k="noGps" /></p>
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
@@ -259,7 +255,7 @@ function AdminLocationsContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="font-bold text-slate-900">
-                      Reports
+                      <T k="reports" />
                     </h2>
 
                     <p className="mt-1 text-xs text-slate-500">
@@ -271,7 +267,7 @@ function AdminLocationsContent() {
                   </div>
 
                   <div className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
-                    GPS
+                    <T k="gps" />
                   </div>
                 </div>
               </div>
@@ -317,22 +313,20 @@ function AdminLocationsContent() {
                           </p>
 
                           <p className="mt-1 text-xs text-slate-500">
-                            {formatDate(
-                              report.createdAt
-                            )}
+                            {formatDate(report.createdAt, locale, tu("unknown"))}
                           </p>
                         </div>
 
                         {isSelected && (
                           <span className="shrink-0 rounded-full bg-red-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Selected
+                            <T k="selected" />
                           </span>
                         )}
                       </div>
 
                       <div className="mt-3 rounded-xl bg-slate-50 p-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                          Coordinates
+                          <T k="coordinates" />
                         </p>
 
                         <p className="mt-1 font-mono text-xs text-slate-700">
@@ -348,7 +342,7 @@ function AdminLocationsContent() {
                         {coordinates.accuracy !==
                           undefined && (
                           <p className="mt-1 text-[11px] text-slate-500">
-                            Accuracy: approximately{" "}
+                            <T k="accuracyApprox" />
                             {Math.round(
                               coordinates.accuracy
                             )}{" "}
@@ -371,7 +365,7 @@ function AdminLocationsContent() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
-                          Selected incident
+                          <T k="selectedIncident" />
                         </p>
 
                         <h2 className="mt-1 text-xl font-bold text-slate-900">
@@ -380,15 +374,13 @@ function AdminLocationsContent() {
 
                         <p className="mt-1 text-sm text-slate-500">
                           Submitted{" "}
-                          {formatDate(
-                            selectedReport.createdAt
-                          )}
+                          {formatDate(selectedReport.createdAt, locale, tu("unknown"))}
                         </p>
                       </div>
 
                       <div className="rounded-xl bg-slate-100 px-4 py-3">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                          GPS Coordinates
+                          <T k="gpsCoordinates" />
                         </p>
 
                         <p className="mt-1 font-mono text-xs text-slate-700">
@@ -419,7 +411,7 @@ function AdminLocationsContent() {
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                        Latitude
+                        <T k="latitude" />
                       </p>
 
                       <p className="mt-1 font-mono text-sm font-semibold text-slate-800">
@@ -431,7 +423,7 @@ function AdminLocationsContent() {
 
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                        Longitude
+                        <T k="longitude" />
                       </p>
 
                       <p className="mt-1 font-mono text-sm font-semibold text-slate-800">
@@ -443,7 +435,7 @@ function AdminLocationsContent() {
 
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                        GPS Accuracy
+                        <T k="gpsAccuracy" />
                       </p>
 
                       <p className="mt-1 text-sm font-semibold text-slate-800">
@@ -452,17 +444,14 @@ function AdminLocationsContent() {
                           ? `±${Math.round(
                               selectedCoordinates.accuracy
                             )} m`
-                          : "Not available"}
+                          : tu("notAvailable")}
                       </p>
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="flex h-[500px] items-center justify-center rounded-2xl bg-slate-100">
-                  <p className="text-sm font-medium text-slate-500">
-                    Select a report to view its
-                    location.
-                  </p>
+                  <p className="text-sm font-medium text-slate-500"><T k="selectLocation" /></p>
                 </div>
               )}
             </section>
@@ -482,7 +471,7 @@ export default function AdminLocationsPage() {
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-red-500" />
 
             <p className="text-sm font-medium text-slate-300">
-              Loading report locations...
+              <T k="loadingReportLocations" />
             </p>
           </div>
         </main>

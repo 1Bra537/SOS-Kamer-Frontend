@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {getTranslations} from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 const emergencyServices = [
   {
@@ -30,14 +30,20 @@ export default async function HomePage() {
       {/* HEADER */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3" aria-label="SOS-Kamer home">
+          <Link
+            href="/"
+            className="flex items-center gap-3"
+            aria-label="SOS-Kamer home"
+          >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-sm">
               S
             </span>
+
             <div>
               <p className="text-base font-bold tracking-tight">
                 SOS<span className="text-red-600">-Kamer</span>
               </p>
+
               <p className="text-[10px] font-medium text-slate-400">
                 {common("tagline")}
               </p>
@@ -51,6 +57,7 @@ export default async function HomePage() {
             >
               {common("signIn")}
             </Link>
+
             <Link
               href="/signup"
               className="hidden rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 sm:inline-flex"
@@ -78,7 +85,10 @@ export default async function HomePage() {
             </p>
 
             <div className="mt-7 rounded-xl border border-red-200 bg-red-50 p-4 sm:p-5">
-              <p className="text-sm font-bold text-red-700">{t("immediateDangerTitle")}</p>
+              <p className="text-sm font-bold text-red-700">
+                {t("immediateDangerTitle")}
+              </p>
+
               <p className="mt-1 text-sm leading-6 text-red-700/80">
                 {t("immediateDangerDescription")}
               </p>
@@ -91,6 +101,7 @@ export default async function HomePage() {
               >
                 {common("reportIncident")}
               </Link>
+
               <Link
                 href="/login"
                 className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
@@ -103,7 +114,10 @@ export default async function HomePage() {
           {/* EMERGENCY SERVICES */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-5">
             <div className="mb-5">
-              <h2 className="text-xl font-bold text-slate-950">{t("emergencyServices")}</h2>
+              <h2 className="text-xl font-bold text-slate-950">
+                {t("emergencyServices")}
+              </h2>
+
               <p className="mt-1 text-sm leading-6 text-slate-500">
                 {t("emergencyServicesDescription")}
               </p>
@@ -121,6 +135,7 @@ export default async function HomePage() {
                       <p className="font-bold text-slate-950">
                         {emergency(`${service.key}`)}
                       </p>
+
                       <p className="mt-1 text-xs leading-5 text-slate-500">
                         {emergency(`${service.key}Description`)}
                       </p>
@@ -130,6 +145,7 @@ export default async function HomePage() {
                       <p className="text-xl font-bold tracking-wide text-slate-950">
                         {service.number}
                       </p>
+
                       <span className="mt-1 inline-flex rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition group-hover:bg-red-700">
                         {common("call")}
                       </span>
@@ -153,9 +169,11 @@ export default async function HomePage() {
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-600">
               {t("howItWorks")}
             </p>
+
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
               {t("howItWorksTitle")}
             </h2>
+
             <p className="mt-4 text-base leading-7 text-slate-500">
               {t("howItWorksDescription")}
             </p>
@@ -171,9 +189,17 @@ export default async function HomePage() {
                 key={number}
                 className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
-                <span className="text-xs font-bold text-red-600">{number}</span>
-                <h3 className="mt-3 text-lg font-bold text-slate-950">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
+                <span className="text-xs font-bold text-red-600">
+                  {number}
+                </span>
+
+                <h3 className="mt-3 text-lg font-bold text-slate-950">
+                  {title}
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  {text}
+                </p>
               </div>
             ))}
           </div>
@@ -183,12 +209,22 @@ export default async function HomePage() {
       {/* FOOTER */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-7 text-sm text-slate-400 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} SOS-Kamer. {t("footer")}.</p>
+          <p>
+            © {new Date().getFullYear()} SOS-Kamer.
+          </p>
+
           <div className="flex gap-4">
-            <Link href="/login" className="transition hover:text-slate-700">
+            <Link
+              href="/login"
+              className="transition hover:text-slate-700"
+            >
               {common("signIn")}
             </Link>
-            <Link href="/signup" className="transition hover:text-slate-700">
+
+            <Link
+              href="/signup"
+              className="transition hover:text-slate-700"
+            >
               {common("createAccount")}
             </Link>
           </div>
